@@ -1443,7 +1443,7 @@ class TestRepositorySync:
 
         :CaseAutomation: Automated
         """
-        org = entities.Organization().create()
+        org = target_sat.api.Organization().create()
         with manifests.clone() as manifest:
             upload_manifest(org.id, manifest.content)
         rhel7_extra = enable_rhrepo_and_fetchid(
@@ -1454,7 +1454,7 @@ class TestRepositorySync:
             reposet=constants.REPOSET['rhel7_extra'],
             releasever=None,
         )
-        rhel7_extra = entities.Repository(id=rhel7_extra).read()
+        rhel7_extra = target_sat.api.Repository(id=rhel7_extra).read()
         sync_task = rhel7_extra.sync(synchronous=False)
         target_sat.power_control(state='reboot', ensure=True)
         try:
@@ -1470,7 +1470,7 @@ class TestRepositorySync:
                 search_rate=15,
                 max_tries=10,
             )
-        task_status = entities.ForemanTask(id=sync_task['id']).poll()
+        task_status = target_sat.api.ForemanTask(id=sync_task['id']).poll()
         assert task_status['result'] == 'success'
 
 
@@ -1808,7 +1808,7 @@ class TestDockerRepository:
             {
                 constants.CONTAINER_UPSTREAM_NAME: {
                     'content_type': 'docker',
-                    'docker_tags_whitelist': ['latest'],
+                    'include_tags': ['latest'],
                     'docker_upstream_name': constants.CONTAINER_UPSTREAM_NAME,
                     'name': gen_string('alphanumeric', 10),
                     'url': constants.CONTAINER_REGISTRY_HUB,
@@ -1817,18 +1817,18 @@ class TestDockerRepository:
         ),
         indirect=True,
     )
-    def test_positive_synchronize_docker_repo_with_tags_whitelist(self, repo_options, repo):
-        """Check if only whitelisted tags are synchronized
+    def test_positive_synchronize_docker_repo_with_included_tags(self, repo_options, repo):
+        """Check if only included tags are synchronized
 
         :id: abd584ef-f616-49d8-ab30-ae32e4e8a685
 
         :parametrized: yes
 
-        :expectedresults: Only whitelisted tag is synchronized
+        :expectedresults: Only included tag is synchronized
         """
         repo.sync()
         repo = repo.read()
-        assert repo.docker_tags_whitelist == repo_options['docker_tags_whitelist']
+        assert repo.include_tags == repo_options['include_tags']
         assert repo.content_counts['docker_tag'] == 1
 
     @pytest.mark.tier2
@@ -1846,32 +1846,32 @@ class TestDockerRepository:
         ),
         indirect=True,
     )
-    def test_positive_synchronize_docker_repo_set_tags_later(self, repo):
-        """Verify that adding tags whitelist and re-syncing after
-        synchronizing full repository doesn't remove content that was
-        already pulled in
-
-        :id: 6838e152-5fd9-4f25-ae04-67760571f6ba
-
-        :parametrized: yes
-
-        :expectedresults: Non-whitelisted tags are not removed
-        """
-        # TODO: add timeout support to sync(). This repo needs more than the default 300 seconds.
-        repo.sync()
-        repo = repo.read()
-        assert len(repo.docker_tags_whitelist) == 0
-        assert repo.content_counts['docker_tag'] >= 2
-
-        tags = ['latest']
-        repo.docker_tags_whitelist = tags
-        repo.update(['docker_tags_whitelist'])
-        repo.sync()
-        repo = repo.read()
-
-        assert repo.docker_tags_whitelist == tags
-        assert repo.content_counts['docker_tag'] >= 2
-
+    # TODO: Rework test to match new include/exclude tags framework
+    # def test_positive_synchronize_docker_repo_set_tags_later(self, repo):
+    #     """Verify that adding tags whitelist and re-syncing after
+    #     synchronizing full repository doesn't remove content that was
+    #     already pulled in
+    #
+    #     :id: 6838e152-5fd9-4f25-ae04-67760571f6ba
+    #
+    #     :parametrized: yes
+    #
+    #     :expectedresults: Non-whitelisted tags are not removed
+    #     """
+    #     # TODO: add timeout support to sync(). This repo needs more than the default 300 seconds.
+    #     repo.sync()
+    #     repo = repo.read()
+    #     assert len(repo.docker_tags_whitelist) == 0
+    #     assert repo.content_counts['docker_tag'] >= 2
+    #
+    #     tags = ['latest']
+    #     repo.docker_tags_whitelist = tags
+    #     repo.update(['docker_tags_whitelist'])
+    #     repo.sync()
+    #     repo = repo.read()
+    #
+    #     assert repo.docker_tags_whitelist == tags
+    #     assert repo.content_counts['docker_tag'] >= 2
     @pytest.mark.tier2
     @pytest.mark.parametrize(
         'repo_options',
@@ -1879,7 +1879,7 @@ class TestDockerRepository:
             {
                 constants.CONTAINER_UPSTREAM_NAME: {
                     'content_type': 'docker',
-                    'docker_tags_whitelist': ['latest', gen_string('alpha')],
+                    'include_tags': ['latest', gen_string('alpha')],
                     'docker_upstream_name': constants.CONTAINER_UPSTREAM_NAME,
                     'name': gen_string('alphanumeric', 10),
                     'url': constants.CONTAINER_REGISTRY_HUB,
@@ -1889,18 +1889,18 @@ class TestDockerRepository:
         indirect=True,
     )
     def test_negative_synchronize_docker_repo_with_mix_valid_invalid_tags(self, repo_options, repo):
-        """Set tags whitelist to contain both valid and invalid (non-existing)
-        tags. Check if only whitelisted tags are synchronized
+        """Set included tags to contain both valid and invalid (non-existing)
+        tags. Check if only valid tags are synchronized
 
         :id: 7b66171f-5bf1-443b-9ca3-9614d66a0c6b
 
         :parametrized: yes
 
-        :expectedresults: Only whitelisted tag is synchronized
+        :expectedresults: Only valid tag is synchronized
         """
         repo.sync()
         repo = repo.read()
-        assert repo.docker_tags_whitelist == repo_options['docker_tags_whitelist']
+        assert repo.include_tags == repo_options['include_tags']
         assert repo.content_counts['docker_tag'] == 1
 
     @pytest.mark.tier2
@@ -1910,7 +1910,7 @@ class TestDockerRepository:
             {
                 constants.CONTAINER_UPSTREAM_NAME: {
                     'content_type': 'docker',
-                    'docker_tags_whitelist': [gen_string('alpha') for _ in range(3)],
+                    'include_tags': [gen_string('alpha') for _ in range(3)],
                     'docker_upstream_name': constants.CONTAINER_UPSTREAM_NAME,
                     'name': gen_string('alphanumeric', 10),
                     'url': constants.CONTAINER_REGISTRY_HUB,
@@ -1920,7 +1920,7 @@ class TestDockerRepository:
         indirect=True,
     )
     def test_negative_synchronize_docker_repo_with_invalid_tags(self, repo_options, repo):
-        """Set tags whitelist to contain only invalid (non-existing)
+        """Set include tags to contain only invalid (non-existing)
         tags. Check that no data is synchronized.
 
         :id: c419da6a-1530-4f66-8f8e-d4ec69633356
@@ -1931,7 +1931,7 @@ class TestDockerRepository:
         """
         repo.sync()
         repo = repo.read()
-        assert repo.docker_tags_whitelist == repo_options['docker_tags_whitelist']
+        assert repo.include_tags == repo_options['include_tags']
         assert repo.content_counts['docker_tag'] == 0
 
 
