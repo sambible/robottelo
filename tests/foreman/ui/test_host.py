@@ -2458,3 +2458,131 @@ class TestHostCockpit:
                 f'cockpit page shows hostname {hostname_inside_cockpit} '
                 f'instead of {cockpit_host.hostname}'
             )
+
+
+class TestHostAnsible:
+    """Tests for Ansible portion of Hosts"""
+
+    @pytest.mark.stubbed
+    @pytest.mark.tier2
+    def test_positive_host_role_information(self):
+        """Assign Ansible Role to a Host and an attached Host group and verify that the information
+        in the new UI is displayed correctly
+
+        :id: 7da913ef-3b43-4bfa-9a45-d895431c8b56
+
+        :assignee: sbible
+
+        :steps: 1. Register a RHEL host to Satellite.
+                2. Import all roles available by default.
+                3. Create a host group and assign one of the Ansible roles to the host group.
+                4. Assign the host to the host group
+                5. Assign one roles to the RHEL host.
+                6. Navigate to the new UI for the given Host
+                7. Select the 'Ansible' tab, then the 'Inventory' sub-tab.
+
+        :expectedresults: Roles assigned directly to the Host are visible on the subtab, and
+        roles assigned to the Host Group are visible by clicking the "view all assigned roles" link
+        """
+
+    @pytest.mark.stubbed
+    @pytest.mark.tier2
+    def test_positive_role_variable_information(self):
+        """Create and assign variables to an Ansible Role and verify that the information in
+        the new UI is displayed correctly
+
+        :id: 4ab2813a-6b83-4907-b104-0473465814f5
+
+        :assignee: sbible
+
+        :steps: 1. Register a RHEL host to Satellite.
+                2. Import all roles available by default.
+                3. Create a host group and assign one of the Ansible roles to the host group.
+                4. Assign the host to the host group
+                5. Assign one roles to the RHEL host.
+                6. Create a variable and associate it with the role assigned to the Host
+                7. Create a variable and associate it with the role assigned to the Hostgroup
+                8.  Navigate to the new UI for the given Host
+                9.  Select the 'Ansible' tab, then the 'Variables' sub-tab.
+
+        :expectedresults: The variables information for the given Host is visible.
+        """
+
+    @pytest.mark.stubbed
+    @pytest.mark.tier2
+    def test_positive_assign_role_in_new_ui(self):
+        """Using the new Host UI, assign a role to a Host
+
+        :id: 044f38b4-cff2-4ddc-b93c-7e9f2826d00d
+
+        :assignee: sbible
+
+        :steps: 1. Register a RHEL host to Satellite
+                2. Import all roles available by default.
+                3. Navigate to the new UI for the given Host
+                4. Using the popup, assign a role to the Host
+
+        :expectedresults: The Role is successfully assigned to the Host, and shows up on the UI
+        """
+
+    @pytest.mark.stubbed
+    @pytest.mark.tier2
+    def test_positive_remove_role_in_new_ui(self):
+        """Using the new Host UI, remove the role(s) of a Host
+
+        :id: d6de5130-45f6-4349-b490-fbde2aed082c
+
+        :assignee: sbible
+
+        :steps: 1. Register a RHEL host to Satellite
+                2. Import all roles available by default.
+                3. Assign a role to host.
+                4. Navigate to the new UI for the given Host
+                5. Using the popup, remove the role from the Host
+
+
+        :expectedresults: The Role is successfully removed from the Host, and no longer shows
+        up on the UI
+        """
+
+    @pytest.mark.stubbed
+    @pytest.mark.tier2
+    def test_positive_schedule_recurring_host_job(self):
+        """Using the new Host UI, schedule a recurring job on a Host
+
+        :id: 5052be04-28ab-4349-8bee-851ef76e4ffa
+
+        :assignee: sbible
+
+        :steps: 1. Register a RHEL host to Satellite
+                2. Import all roles available by default.
+                3. Assign a role to host.
+                4. Navigate to the new UI for the given Host
+                5. Select the Jobs subtab
+                6. Click the Schedule Recurring Job button, and using the popup, schedule a
+                recurring Job
+                7. Navigate to Job Invocations
+
+        :expectedresults: The scheduled Job appears and will run at the appropriate time
+        """
+
+    @pytest.mark.stubbed
+    @pytest.mark.tier2
+    def test_positive_schedule_recurring_hostgroup_job(self):
+        """Using the new recurring job scheduler, schedule a recurring job on a Hostgroup
+
+        :id: c65db99b-11fe-4a32-89d0-0a4692b07efe
+
+        :assignee: sbible
+
+        :steps: 1. Register a RHEL host to Satellite
+                2. Import all roles available by default.
+                3. Assign a role to host.
+                4. Navigate to the Host Group page
+                5. Select the "Configure Ansible Job" action
+                6. Click the Schedule Recurring Job button, and using the popup, schedule a
+                recurring Job
+                7. Navigate to Job Invocations
+
+        :expectedresults: The scheduled Job appears and will run at the appropriate time
+        """
