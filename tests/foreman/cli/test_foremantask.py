@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: TasksPlugin
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import pytest
 
 
@@ -48,5 +44,4 @@ def test_positive_tasks_backup():
     :CaseImportance: High
 
     :CaseAutomation: NotAutomated
-
     """

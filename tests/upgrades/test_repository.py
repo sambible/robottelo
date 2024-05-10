@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Repositories
 
 :Team: Phoenix-content
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import pytest
 
 from robottelo.config import settings

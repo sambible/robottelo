@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Virt-whoConfigurePlugin
 
 :team: Phoenix-subscriptions
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import pytest
 
 from robottelo.config import settings
@@ -40,8 +36,6 @@ class TestVirtWhoConfigforHyperv:
         :expectedresults:
             1. Config can be created and deployed
             2. Config can be created, fetch and deploy
-
-        :CaseLevel: Integration
 
         :CaseImportance: High
         """
@@ -80,8 +74,6 @@ class TestVirtWhoConfigforHyperv:
         :id: 8e234492-33cb-4523-abb3-582626ad704c
 
         :expectedresults: hypervisor_id option can be updated.
-
-        :CaseLevel: Integration
 
         :CaseImportance: Medium
         """

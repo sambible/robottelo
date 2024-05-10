@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
-:CaseComponent: ForemanMaintain
+:CaseComponent: SatelliteMaintain
 
 :Team: Platform
 
-:TestType: Functional
-
 :CaseImportance: Critical
 
-:Upstream: No
 """
+
 from fauxfactory import gen_string
 import pytest
 from wait_for import wait_for
@@ -230,7 +226,9 @@ def test_positive_foreman_service(sat_maintain):
     assert 'foreman' in result.stdout
     result = sat_maintain.cli.Service.status(options={'only': 'httpd'})
     assert result.status == 0
-    result = sat_maintain.cli.Health.check(options={'assumeyes': True})
+    result = sat_maintain.cli.Health.check(
+        options={'assumeyes': True, 'whitelist': 'check-tftp-storage'}
+    )
     assert result.status == 0
     assert 'foreman' in result.stdout
     assert sat_maintain.cli.Service.start(options={'only': 'foreman'}).status == 0

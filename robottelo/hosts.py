@@ -14,6 +14,7 @@ import time
 from urllib.parse import urljoin, urlparse, urlunsplit
 import warnings
 
+import apypie
 from box import Box
 from broker import Broker
 from broker.hosts import Host
@@ -62,7 +63,7 @@ from robottelo.utils.installer import InstallerCommand
 POWER_OPERATIONS = {
     VmState.RUNNING: 'running',
     VmState.STOPPED: 'stopped',
-    'reboot': 'reboot'
+    'reboot': 'reboot',
     # TODO paused, suspended, shelved?
 }
 
@@ -76,8 +77,7 @@ def lru_sat_ready_rhel(rhel_ver):
         'promtail_config_template_file': 'config_sat.j2',
         'workflow': settings.server.deploy_workflows.os,
     }
-    sat_ready_rhel = Broker(**deploy_args, host_class=Satellite).checkout()
-    return sat_ready_rhel
+    return Broker(**deploy_args, host_class=Satellite).checkout()
 
 
 def get_sat_version():
@@ -171,6 +171,10 @@ class IPAHostError(Exception):
     pass
 
 
+class ProxyHostError(Exception):
+    pass
+
+
 class ContentHost(Host, ContentHostMixins):
     run = Host.execute
     default_timeout = settings.server.ssh_client.command_timeout
@@ -245,8 +249,8 @@ class ContentHost(Host, ContentHostMixins):
                 logger.error(f'Failed to get nailgun host for {self.hostname}: {err}')
                 host = None
             return host
-        else:
-            logger.warning(f'Host {self.hostname} not registered to {self.satellite.hostname}')
+        logger.warning(f'Host {self.hostname} not registered to {self.satellite.hostname}')
+        return None
 
     @property
     def subscribed(self):
@@ -414,11 +418,11 @@ class ContentHost(Host, ContentHostMixins):
         try:
             vm_operation = POWER_OPERATIONS.get(state)
             workflow_name = settings.broker.host_workflows.power_control
-        except (AttributeError, KeyError):
+        except (AttributeError, KeyError) as err:
             raise NotImplementedError(
                 'No workflow in broker.host_workflows for power control, '
                 'or VM operation not supported'
-            )
+            ) from err
         assert (
             # TODO read the kwarg name from settings too?
             Broker()
@@ -434,7 +438,10 @@ class ContentHost(Host, ContentHostMixins):
         if ensure and state in [VmState.RUNNING, 'reboot']:
             try:
                 wait_for(
-                    self.connect, fail_condition=lambda res: res is not None, handle_exception=True
+                    self.connect,
+                    fail_condition=lambda res: res is not None,
+                    timeout=300,
+                    handle_exception=True,
                 )
             # really broad diaper here, but connection exceptions could be a ton of types
             except TimedOutError as toe:
@@ -515,6 +522,7 @@ class ContentHost(Host, ContentHostMixins):
             downstream_repo = settings.repos.capsule_repo
         if force or settings.robottelo.cdn or not downstream_repo:
             return self.execute(f'subscription-manager repos --enable {repo}')
+        return None
 
     def subscription_manager_list_repos(self):
         return self.execute('subscription-manager repos --list')
@@ -525,10 +533,12 @@ class ContentHost(Host, ContentHostMixins):
     def subscription_manager_list(self):
         return self.execute('subscription-manager list')
 
-    def subscription_manager_get_pool(self, sub_list=[]):
+    def subscription_manager_get_pool(self, sub_list=None):
         """
         Return pool ids for the corresponding subscriptions in the list
         """
+        if sub_list is None:
+            sub_list = []
         pool_ids = []
         for sub in sub_list:
             result = self.execute(
@@ -540,10 +550,12 @@ class ContentHost(Host, ContentHostMixins):
             pool_ids.append(result)
         return pool_ids
 
-    def subscription_manager_attach_pool(self, pool_list=[]):
+    def subscription_manager_attach_pool(self, pool_list=None):
         """
         Attach pool ids to the host and return the result
         """
+        if pool_list is None:
+            pool_list = []
         result = []
         for pool in pool_list:
             result.append(self.execute(f'subscription-manager attach --pool={pool}'))
@@ -621,6 +633,7 @@ class ContentHost(Host, ContentHostMixins):
         warnings.warn(
             message='The install_katello_ca method is deprecated, use the register method instead.',
             category=DeprecationWarning,
+            stacklevel=2,
         )
         self._satellite = satellite
         self.execute(
@@ -673,6 +686,7 @@ class ContentHost(Host, ContentHostMixins):
                 'use the register method instead.'
             ),
             category=DeprecationWarning,
+            stacklevel=2,
         )
         url = urlunsplit(('http', capsule, 'pub/', '', ''))
         ca_url = urljoin(url, 'katello-ca-consumer-latest.noarch.rpm')
@@ -713,10 +727,10 @@ class ContentHost(Host, ContentHostMixins):
         """Registers content host to the Satellite or Capsule server
         using a global registration template.
 
-        :param target: Satellite or Capusle object to register to, required.
         :param org: Organization to register content host to. Previously required, pass None to omit
         :param loc: Location to register content host for, Previously required, pass None to omit.
         :param activation_keys: Activation key name to register content host with, required.
+        :param target: Satellite or Capsule object to register to, required.
         :param setup_insights: Install and register Insights client, requires OS repo.
         :param setup_remote_execution: Copy remote execution SSH key.
         :param setup_remote_execution_pull: Deploy pull provider client on host
@@ -826,10 +840,7 @@ class ContentHost(Host, ContentHostMixins):
             registration.
         """
 
-        if username and password:
-            userpass = f' --username {username} --password {password}'
-        else:
-            userpass = ''
+        userpass = f' --username {username} --password {password}' if username and password else ''
         # Setup the base command
         cmd = 'subscription-manager register'
         if org:
@@ -872,12 +883,17 @@ class ContentHost(Host, ContentHostMixins):
         """Get a remote file from the broker virtual machine."""
         self.session.sftp_read(source=remote_path, destination=local_path)
 
-    def put(self, local_path, remote_path=None):
+    def put(self, local_path, remote_path=None, temp_file=False):
         """Put a local file to the broker virtual machine.
         If local_path is a manifest object, write its contents to a temporary file
         then continue with the upload.
         """
-        if 'utils.manifest' in str(local_path):
+        if temp_file:
+            with NamedTemporaryFile(dir=robottelo_tmp_dir) as content_file:
+                content_file.write(str.encode(local_path))
+                content_file.flush()
+                self.session.sftp_write(source=content_file.name, destination=remote_path)
+        elif 'utils.manifest' in str(local_path):
             with NamedTemporaryFile(dir=robottelo_tmp_dir) as content_file:
                 content_file.write(local_path.content.read())
                 content_file.flush()
@@ -921,11 +937,7 @@ class ContentHost(Host, ContentHostMixins):
         # ensure ssh directory exists
         self.execute(f'mkdir -p {ssh_path}')
         # append the key if doesn't exists
-        self.execute(
-            "grep -q '{key}' {dest} || echo '{key}' >> {dest}".format(
-                key=key_content, dest=auth_file
-            )
-        )
+        self.execute(f"grep -q '{key_content}' {auth_file} || echo '{key_content}' >> {auth_file}")
         # set proper permissions
         self.execute(f'chmod 700 {ssh_path}')
         self.execute(f'chmod 600 {auth_file}')
@@ -977,7 +989,7 @@ class ContentHost(Host, ContentHostMixins):
                 f'Failed to put hostname in ssh known_hosts files:\n{result.stderr}'
             )
 
-    def configure_puppet(self, proxy_hostname=None):
+    def configure_puppet(self, proxy_hostname=None, run_puppet_agent=True):
         """Configures puppet on the virtual machine/Host.
         :param proxy_hostname: external capsule hostname
         :return: None.
@@ -1017,12 +1029,14 @@ class ContentHost(Host, ContentHostMixins):
         self.execute('/opt/puppetlabs/bin/puppet agent -t')
         proxy_host = Host(hostname=proxy_hostname)
         proxy_host.execute(f'puppetserver ca sign --certname {cert_name}')
-        # This particular puppet run would create the host entity under
-        # 'All Hosts' and let's redirect stderr to /dev/null as errors at
-        #  this stage can be ignored.
-        result = self.execute('/opt/puppetlabs/bin/puppet agent -t 2> /dev/null')
-        if result.status:
-            raise ContentHostError('Failed to configure puppet on the content host')
+
+        if run_puppet_agent:
+            # This particular puppet run would create the host entity under
+            # 'All Hosts' and let's redirect stderr to /dev/null as errors at
+            #  this stage can be ignored.
+            result = self.execute('/opt/puppetlabs/bin/puppet agent -t 2> /dev/null')
+            if result.status:
+                raise ContentHostError('Failed to configure puppet on the content host')
 
     def execute_foreman_scap_client(self, policy_id=None):
         """Executes foreman_scap_client on the vm to create security audit report.
@@ -1444,8 +1458,10 @@ class ContentHost(Host, ContentHostMixins):
             raise ContentHostError('There was an error installing katello-host-tools-tracer')
         self.execute('katello-tracer-upload')
 
-    def register_to_cdn(self, pool_ids=[settings.subscription.rhn_poolid]):
+    def register_to_cdn(self, pool_ids=None):
         """Subscribe satellite to CDN"""
+        if pool_ids is None:
+            pool_ids = [settings.subscription.rhn_poolid]
         self.remove_katello_ca()
         cmd_result = self.register_contenthost(
             org=None,
@@ -1576,18 +1592,35 @@ class Capsule(ContentHost, CapsuleMixins):
         for line in result.stdout.splitlines():
             if error_msg in line:
                 return line.replace(error_msg, '').strip()
+        return None
 
     def install(self, installer_obj=None, cmd_args=None, cmd_kwargs=None):
         """General purpose installer"""
         if not installer_obj:
             command_opts = {'scenario': self.__class__.__name__.lower()}
-            command_opts.update(cmd_kwargs)
+            if cmd_kwargs:
+                command_opts.update(cmd_kwargs)
             installer_obj = InstallerCommand(*cmd_args, **command_opts)
         return self.execute(installer_obj.get_command(), timeout=0)
 
     def get_features(self):
         """Get capsule features"""
         return requests.get(f'https://{self.hostname}:9090/features', verify=False).text
+
+    def enable_capsule_downstream_repos(self):
+        """Enable CDN repos and capsule downstream repos on Capsule Host"""
+        # CDN Repos
+        self.register_to_cdn()
+        for repo in getattr(constants, f"OHSNAP_RHEL{self.os_version.major}_REPOS"):
+            result = self.enable_repo(repo, force=True)
+            if result.status:
+                raise CapsuleHostError(f'Repo enable at capsule host failed\n{result.stdout}')
+        # Downstream Capsule specific Repos
+        self.download_repofile(
+            product='capsule',
+            release=settings.capsule.version.release,
+            snap=settings.capsule.version.snap,
+        )
 
     def capsule_setup(self, sat_host=None, capsule_cert_opts=None, **installer_kwargs):
         """Prepare the host and run the capsule installer"""
@@ -1665,19 +1698,6 @@ class Capsule(ContentHost, CapsuleMixins):
         if result.status != 0:
             raise SatelliteHostError(f'Failed to enable pull provider: {result.stdout}')
 
-    def run_installer_arg(self, *args, timeout='20m'):
-        """Run an installer argument on capsule"""
-        installer_args = list(args)
-        installer_command = InstallerCommand(
-            installer_args=installer_args,
-        )
-        result = self.execute(
-            installer_command.get_command(),
-            timeout=timeout,
-        )
-        if result.status != 0:
-            raise SatelliteHostError(f'Failed to execute with argument: {result.stderr}')
-
     def set_mqtt_resend_interval(self, value):
         """Set the time interval in seconds at which the notification should be
         re-sent to the mqtt host until the job is picked up or cancelled"""
@@ -1733,6 +1753,7 @@ class Satellite(Capsule, SatelliteMixins):
         # create dummy classes for later population
         self._api = type('api', (), {'_configured': False})
         self._cli = type('cli', (), {'_configured': False})
+        self._apidoc = None
         self.record_property = None
 
     def _swap_nailgun(self, new_version):
@@ -1744,7 +1765,7 @@ class Satellite(Capsule, SatelliteMixins):
         pip_main(['uninstall', '-y', 'nailgun'])
         pip_main(['install', f'https://github.com/SatelliteQE/nailgun/archive/{new_version}.zip'])
         self._api = type('api', (), {'_configured': False})
-        to_clear = [k for k in sys.modules.keys() if 'nailgun' in k]
+        to_clear = [k for k in sys.modules if 'nailgun' in k]
         [sys.modules.pop(k) for k in to_clear]
 
     @property
@@ -1787,6 +1808,19 @@ class Satellite(Capsule, SatelliteMixins):
         return self._api
 
     @property
+    def apidoc(self):
+        """Provide Satellite's apidoc via apypie"""
+        if not self._apidoc:
+            self._apidoc = apypie.Api(
+                uri=self.url,
+                username=settings.server.admin_username,
+                password=settings.server.admin_password,
+                api_version=2,
+                verify_ssl=settings.server.verify_ca,
+            ).apidoc
+        return self._apidoc
+
+    @property
     def cli(self):
         """Import all robottelo cli entities and wrap them under self.cli"""
         if not self._cli:
@@ -1818,9 +1852,27 @@ class Satellite(Capsule, SatelliteMixins):
 
     @contextmanager
     def omit_credentials(self):
-        self.omitting_credentials = True
+        change = not self.omitting_credentials  # if not already set to omit
+        if change:
+            self.omitting_credentials = True
+            # if CLI is already created
+            if self._cli._configured:
+                for name, obj in self._cli.__dict__.items():
+                    with contextlib.suppress(
+                        AttributeError
+                    ):  # not everything has an mro method, we don't care about them
+                        if Base in obj.mro():
+                            getattr(self._cli, name).omitting_credentials = True
         yield
-        self.omitting_credentials = False
+        if change:
+            self.omitting_credentials = False
+            if self._cli._configured:
+                for name, obj in self._cli.__dict__.items():
+                    with contextlib.suppress(
+                        AttributeError
+                    ):  # not everything has an mro method, we don't care about them
+                        if Base in obj.mro():
+                            getattr(self._cli, name).omitting_credentials = False
 
     @contextmanager
     def ui_session(self, testname=None, user=None, password=None, url=None, login=True):
@@ -1834,6 +1886,7 @@ class Satellite(Capsule, SatelliteMixins):
             for frame in inspect.stack():
                 if frame.function.startswith('test_'):
                     return frame.function
+            return None
 
         try:
             ui_session = Session(
@@ -1848,10 +1901,10 @@ class Satellite(Capsule, SatelliteMixins):
         except Exception:
             raise
         finally:
-            video_url = settings.ui.grid_url.replace(
-                ':4444', f'/videos/{ui_session.ui_session_id}.mp4'
-            )
             if self.record_property is not None and settings.ui.record_video:
+                video_url = settings.ui.grid_url.replace(
+                    ':4444', f'/videos/{ui_session.ui_session_id}/video.mp4'
+                )
                 self.record_property('video_url', video_url)
                 self.record_property('session_id', ui_session.ui_session_id)
 
@@ -2515,3 +2568,42 @@ class IPAHost(Host):
         )
         if result.status != 0:
             raise IPAHostError('Failed to remove the user from user group')
+
+
+class ProxyHost(Host):
+    """Class representing HTTP Proxy host"""
+
+    def __init__(self, url, **kwargs):
+        self._conf_dir = '/etc/squid/'
+        self._access_log = '/var/log/squid/access.log'
+        kwargs['hostname'] = urlparse(url).hostname
+        super().__init__(**kwargs)
+
+    def add_user(self, name, passwd):
+        """Adds new user to the HTTP Proxy"""
+        res = self.execute(f"htpasswd -b {self._conf_dir}passwd {name} '{passwd}'")
+        assert res.status == 0, f'User addition failed on the proxy side: {res.stderr}'
+        return res
+
+    def remove_user(self, name):
+        """Removes a user from HTTP Proxy"""
+        res = self.execute(f'htpasswd -D {self._conf_dir}passwd {name}')
+        assert res.status == 0, f'User deletion failed on the proxy side: {res.stderr}'
+        return res
+
+    def get_log(self, which=None, tail=None, grep=None):
+        """Returns log content from the HTTP Proxy instance
+
+        :param which: Which log file should be read. Defaults to access.log.
+        :param tail: Use when only the tail of a long log file is needed.
+        :param grep: Grep for some expression.
+        :return: Log content found or None
+        """
+        log_file = which or self._access_log
+        cmd = f'tail -n {tail} {log_file}' if tail else f'cat {log_file}'
+        if grep:
+            cmd = f'{cmd} | grep "{grep}"'
+        res = self.execute(cmd)
+        if res.status != 0:
+            raise ProxyHostError(f'Proxy log read failed: {res.stderr}')
+        return None if res.stdout == '' else res.stdout

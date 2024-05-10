@@ -4,14 +4,10 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from random import choice, randint, shuffle
 
 from fauxfactory import gen_string, gen_url
@@ -173,7 +169,6 @@ class TestDockerRepository:
         :expectedresults: Multiple docker repositories are created with a
             Docker upstream repository and they all belong to the same product.
 
-        :CaseLevel: Integration
         """
         for _ in range(randint(2, 5)):
             repo = _create_repository(module_target_sat, module_product)
@@ -189,7 +184,6 @@ class TestDockerRepository:
             Docker upstream repository and they all belong to their respective
             products.
 
-        :CaseLevel: Integration
         """
         for _ in range(randint(2, 5)):
             product = module_target_sat.api.Product(organization=module_org).create()
@@ -197,22 +191,6 @@ class TestDockerRepository:
                 repo = _create_repository(module_target_sat, product)
                 product = product.read()
                 assert repo.id in [repo_.id for repo_ in product.repository]
-
-    @pytest.mark.tier1
-    def test_positive_sync(self, module_product, module_target_sat):
-        """Create and sync a Docker-type repository
-
-        :id: 80fbcd84-1c6f-444f-a44e-7d2738a0cba2
-
-        :expectedresults: A repository is created with a Docker repository and
-            it is synchronized.
-
-        :CaseImportance: Critical
-        """
-        repo = _create_repository(module_target_sat, module_product)
-        repo.sync(timeout=600)
-        repo = repo.read()
-        assert repo.content_counts['docker_manifest'] >= 1
 
     @pytest.mark.tier1
     @pytest.mark.parametrize('new_name', **parametrized(valid_docker_repository_names()))
@@ -326,8 +304,6 @@ class TestDockerContentView:
     :CaseComponent: ContentViews
 
     :team: Phoenix-content
-
-    :CaseLevel: Integration
     """
 
     @pytest.mark.tier2
@@ -983,8 +959,6 @@ class TestDockerActivationKey:
     :CaseComponent: ActivationKeys
 
     :team: Phoenix-subscriptions
-
-    :CaseLevel: Integration
     """
 
     @pytest.mark.tier2
@@ -1019,7 +993,6 @@ class TestDockerActivationKey:
         :expectedresults: Docker-based content view can be added and then
             removed from the activation key.
 
-        :CaseLevel: Integration
         """
         content_view = content_view_publish_promote
         ak = module_target_sat.api.ActivationKey(

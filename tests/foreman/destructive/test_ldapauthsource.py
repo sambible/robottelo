@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
-:CaseComponent: LDAP
+:CaseComponent: Authentication
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from time import sleep
 
 import pytest

@@ -7,6 +7,7 @@ this script and generate an image all in one go, use the ``graph-entities``
 command provided by the make file in the parent directory.
 
 """
+
 import inspect
 
 from nailgun import entities, entity_mixins
@@ -24,9 +25,7 @@ def graph():
     for entity_name, entity in entities_.items():
         # Graph out which entities this entity depends on.
         for field_name, field in entity.get_fields().items():
-            if isinstance(field, entity_mixins.OneToOneField) or isinstance(
-                field, entity_mixins.OneToManyField
-            ):
+            if isinstance(field, (entity_mixins.OneToOneField | entity_mixins.OneToManyField)):
                 print(
                     '{} -> {} [label="{}"{}]'.format(
                         entity_name,

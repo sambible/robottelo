@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Puppet
 
 :Team: Rocket
 
-:TestType: Functional
-
 :CaseImportance: Medium
 
-:Upstream: No
 """
+
 import pytest
 
 
@@ -23,8 +19,7 @@ import pytest
 def upgrade_server(request, module_target_sat, pre_configured_capsule):
     if request.param:
         return module_target_sat
-    else:
-        return pre_configured_capsule
+    return pre_configured_capsule
 
 
 class TestPuppet:

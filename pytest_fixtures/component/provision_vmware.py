@@ -1,22 +1,42 @@
 from fauxfactory import gen_string
 import pytest
+from wrapanapi import VMWareSystem
 
 from robottelo.config import settings
 
 
 @pytest.fixture(scope='module')
-def module_vmware_cr(module_provisioning_sat, module_sca_manifest_org, module_location):
-    vmware_cr = module_provisioning_sat.sat.api.VMWareComputeResource(
+def vmware(request):
+    versions = {
+        'vmware7': settings.vmware.vcenter7,
+        'vmware8': settings.vmware.vcenter8,
+    }
+    return versions[getattr(request, 'param', 'vmware8')]
+
+
+@pytest.fixture
+def vmwareclient(vmware):
+    vmwareclient = VMWareSystem(
+        hostname=vmware.hostname,
+        username=settings.vmware.username,
+        password=settings.vmware.password,
+    )
+    yield vmwareclient
+    vmwareclient.disconnect()
+
+
+@pytest.fixture(scope='module')
+def module_vmware_cr(module_provisioning_sat, module_sca_manifest_org, module_location, vmware):
+    return module_provisioning_sat.sat.api.VMWareComputeResource(
         name=gen_string('alpha'),
         provider='Vmware',
-        url=settings.vmware.vcenter,
+        url=vmware.hostname,
         user=settings.vmware.username,
         password=settings.vmware.password,
         datacenter=settings.vmware.datacenter,
         organization=[module_sca_manifest_org],
         location=[module_location],
     ).create()
-    return vmware_cr
 
 
 @pytest.fixture

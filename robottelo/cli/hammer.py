@@ -1,4 +1,5 @@
 """Helpers to interact with hammer command line utility."""
+
 import csv
 import json
 import re
@@ -26,23 +27,39 @@ def _normalize_obj(obj):
     """
     if isinstance(obj, dict):
         return {_normalize(k): _normalize_obj(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
+    if isinstance(obj, list):
         return [_normalize_obj(v) for v in obj]
     # doing this to conform to csv parser
-    elif isinstance(obj, int) and not isinstance(obj, bool):
+    if isinstance(obj, int) and not isinstance(obj, bool):
         return str(obj)
     return obj
+
+
+def is_csv(output):
+    """Verifies if the output string is eligible for converting into CSV"""
+    sniffer = csv.Sniffer()
+    try:
+        sniffer.sniff(output)
+        return True
+    except csv.Error:
+        return False
 
 
 def parse_csv(output):
     """Parse CSV output from Hammer CLI and convert it to python dictionary."""
     # ignore warning about puppet and ostree deprecation
     output.replace('Puppet and OSTree will no longer be supported in Katello 3.16\n', '')
-    reader = csv.reader(output.splitlines())
+    is_rex = 'Job invocation' in output
+    is_pkg_list = 'Nvra' in output
+    # Validate if the output is eligible for CSV conversions else return as it is
+    if not is_csv(output) and not is_rex and not is_pkg_list:
+        return output
+    output = output.splitlines()[0:2] if is_rex else output.splitlines()
+    reader = csv.reader(output)
     # Generate the key names, spaces will be converted to dashes "-"
     keys = [_normalize(header) for header in next(reader)]
     # For each entry, create a dict mapping each key with each value
-    return [dict(zip(keys, values)) for values in reader if len(values) > 0]
+    return [dict(zip(keys, values, strict=True)) for values in reader if len(values) > 0]
 
 
 def parse_help(output):
@@ -160,7 +177,8 @@ def get_line_indentation_level(line, tab_spaces=4, indentation_spaces=4):
         assert get_line_indentation_level('        level 2') == 2
 
     """
-    return get_line_indentation_spaces(line, tab_spaces=tab_spaces) // indentation_spaces
+    spaces = get_line_indentation_spaces(line, tab_spaces=tab_spaces)
+    return spaces // indentation_spaces + (1 if spaces % indentation_spaces > 0 else 0)
 
 
 def parse_info(output):
@@ -183,7 +201,7 @@ def parse_info(output):
         if line.startswith(' '):  # sub-properties are indented
             # values are separated by ':' or '=>', but not by '::' which can be
             # entity name like 'test::params::keys'
-            if line.find(':') != -1 and not line.find('::') != -1:
+            if line.find(':') != -1 and line.find('::') == -1:
                 key, value = line.lstrip().split(":", 1)
             elif line.find('=>') != -1 and len(line.lstrip().split(" =>", 1)) == 2:
                 key, value = line.lstrip().split(" =>", 1)
@@ -234,6 +252,9 @@ def parse_info(output):
                 #     URL:       /custom/4f84fc90-9ffa-...
                 starts_with_number = re.match(r'(\d+)\)', key)
                 if starts_with_number:
+                    # if this is a numbered list on level 2, do nothing - this script doesn't support it
+                    if current_indent_level >= 2:
+                        continue
                     sub_num = int(starts_with_number.group(1))
                     # no. 1) we need to change dict() to list()
                     if sub_num == 1:

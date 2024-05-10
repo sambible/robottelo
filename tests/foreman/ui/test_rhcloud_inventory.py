@@ -1,21 +1,17 @@
 """Tests for RH Cloud - Inventory, also known as Insights Inventory Upload
 
-:Requirement: RH Cloud - Inventory
+:Requirement: RHCloud
 
 :CaseAutomation: Automated
 
-:CaseLevel: System
+:CaseComponent: RHCloud
 
-:CaseComponent: RHCloud-Inventory
-
-:Team: Platform
-
-:TestType: Functional
+:Team: Phoenix-subscriptions
 
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from datetime import datetime, timedelta
 
 import pytest
@@ -150,7 +146,7 @@ def test_rh_cloud_inventory_settings(
 
     :customerscenario: true
 
-    :Steps:
+    :steps:
 
         1. Prepare machine and upload its data to Insights.
         2. Go to Configure > Inventory upload > enable “Obfuscate host names” setting.
@@ -294,7 +290,7 @@ def test_failed_inventory_upload():
 
     :id: 230d3fc3-2810-4385-b07b-30f9bf632488
 
-    :Steps:
+    :steps:
         1. Register a satellite content host with insights.
         2. Change 'DEST' from /var/lib/foreman/red_hat_inventory/uploads/uploader.sh
             to an invalid url.
@@ -318,7 +314,7 @@ def test_rhcloud_inventory_without_manifest(session, module_org, target_sat):
 
     :id: 1d90bb24-2380-4653-8ed6-a084fce66d1e
 
-    :Steps:
+    :steps:
         1. Don't import manifest to satellite.
         3. Go to Configure > Inventory upload > Click on restart button.
 

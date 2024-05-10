@@ -1,4 +1,5 @@
 """Utility module to handle the shared ssh connection."""
+
 from robottelo.cli import hammer
 
 
@@ -16,13 +17,12 @@ def get_client(
     from robottelo.config import settings
     from robottelo.hosts import ContentHost
 
-    client = ContentHost(
+    return ContentHost(
         hostname=hostname or settings.server.hostname,
         username=username or settings.server.ssh_username,
         password=password or settings.server.ssh_password,
         port=port or settings.server.ssh_client.port,
     )
-    return client
 
 
 def command(

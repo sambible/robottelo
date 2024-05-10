@@ -39,6 +39,7 @@ Usage::
             with locking_function(self.test_to_lock):
                 # do some operations that conflict with test_to_lock
 """
+
 from contextlib import contextmanager
 import functools
 import inspect
@@ -112,10 +113,7 @@ def _get_scope_path(scope, scope_kwargs=None, scope_context=None, create=True):
 
     scope_path_list = [_get_temp_lock_function_dir(create=create)]
     if scope:
-        if callable(scope):
-            scope_dir_name = scope(**scope_kwargs)
-        else:
-            scope_dir_name = scope
+        scope_dir_name = scope(**scope_kwargs) if callable(scope) else scope
         if scope_dir_name:
             scope_path_list.append(scope_dir_name)
     if scope_context:
@@ -168,8 +166,8 @@ def _check_deadlock(lock_file_path, process_id):
     """
     if os.path.exists(lock_file_path):
         try:
-            lock_file_handler = open(lock_file_path)
-            lock_file_content = lock_file_handler.read()
+            with open(lock_file_path) as lock_file_handler:
+                lock_file_content = lock_file_handler.read()
         except OSError as exp:
             # do nothing, but anyway log the exception
             logger.exception(exp)
@@ -226,9 +224,8 @@ def lock_function(
     class_name = '.'.join(class_names)
 
     def main_wrapper(func):
-
-        setattr(func, '__class_name__', class_name)
-        setattr(func, '__function_locked__', True)
+        func.__class_name__ = class_name
+        func.__function_locked__ = True
 
         @functools.wraps(func)
         def function_wrapper(*args, **kwargs):
@@ -243,9 +240,7 @@ def lock_function(
 
             with file_lock(lock_file_path, remove=False, timeout=timeout) as handler:
                 logger.info(
-                    'process id: {} lock function using file path: {}'.format(
-                        process_id, lock_file_path
-                    )
+                    f'process id: {process_id} lock function using file path: {lock_file_path}'
                 )
                 # write the process id that locked this function
                 _write_content(handler, process_id)
@@ -265,8 +260,7 @@ def lock_function(
 
     if function:
         return main_wrapper(function)
-    else:
-        return wait_function
+    return wait_function
 
 
 @contextmanager
@@ -307,9 +301,7 @@ def locking_function(
 
     with file_lock(lock_file_path, remove=False, timeout=timeout) as handler:
         logger.info(
-            'process id: {} - lock function name:{}  - using file path: {}'.format(
-                process_id, function_name, lock_file_path
-            )
+            f'process id: {process_id} - lock function name:{function_name}  - using file path: {lock_file_path}'
         )
         # write the process id that locked this function
         _write_content(handler, process_id)

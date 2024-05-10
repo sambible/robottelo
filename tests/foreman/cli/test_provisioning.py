@@ -4,18 +4,14 @@
 
 :CaseAutomation: NotAutomated
 
-:CaseLevel: System
-
 :CaseComponent: Provisioning
 
 :Team: Rocket
 
-:TestType: Functional
-
 :CaseImportance: Critical
 
-:Upstream: No
 """
+
 import pytest
 
 

@@ -2,8 +2,6 @@
 
 :Requirement: Registration
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Registration
 
 :CaseAutomation: Automated
@@ -12,10 +10,13 @@
 
 :Team: Rocket
 
-:TestType: Functional
-
-:Upstream: No
 """
+
+import json
+import re
+from tempfile import mkstemp
+
+from fauxfactory import gen_mac, gen_string
 import pytest
 
 from robottelo.config import settings
@@ -28,7 +29,7 @@ pytestmark = pytest.mark.tier1
 @pytest.mark.e2e
 @pytest.mark.no_containers
 def test_host_registration_end_to_end(
-    module_entitlement_manifest_org,
+    module_sca_manifest_org,
     module_location,
     module_activation_key,
     module_target_sat,
@@ -48,7 +49,7 @@ def test_host_registration_end_to_end(
 
     :customerscenario: true
     """
-    org = module_entitlement_manifest_org
+    org = module_sca_manifest_org
     result = rhel_contenthost.register(
         org, module_location, [module_activation_key.name], module_target_sat
     )
@@ -58,7 +59,7 @@ def test_host_registration_end_to_end(
 
     # Verify server.hostname and server.port from subscription-manager config
     assert module_target_sat.hostname == rhel_contenthost.subscription_config['server']['hostname']
-    assert CLIENT_PORT == rhel_contenthost.subscription_config['server']['port']
+    assert rhel_contenthost.subscription_config['server']['port'] == CLIENT_PORT
 
     # Update module_capsule_configured to include module_org/module_location
     module_target_sat.cli.Capsule.update(
@@ -83,7 +84,7 @@ def test_host_registration_end_to_end(
         module_capsule_configured.hostname
         == rhel_contenthost.subscription_config['server']['hostname']
     )
-    assert CLIENT_PORT == rhel_contenthost.subscription_config['server']['port']
+    assert rhel_contenthost.subscription_config['server']['port'] == CLIENT_PORT
 
 
 def test_upgrade_katello_ca_consumer_rpm(
@@ -120,7 +121,7 @@ def test_upgrade_katello_ca_consumer_rpm(
         f'rpm -Uvh "http://{target_sat.hostname}/pub/{consumer_cert_name}-1.0-1.noarch.rpm"'
     )
     # Check server URL is not Red Hat CDN's "subscription.rhsm.redhat.com"
-    assert 'subscription.rhsm.redhat.com' != vm.subscription_config['server']['hostname']
+    assert vm.subscription_config['server']['hostname'] != 'subscription.rhsm.redhat.com'
     assert target_sat.hostname == vm.subscription_config['server']['hostname']
 
     # Get consumer cert source file
@@ -141,7 +142,7 @@ def test_upgrade_katello_ca_consumer_rpm(
     # Install new rpmbuild/RPMS/noarch/katello-ca-consumer-*-2.noarch.rpm
     assert vm.execute(f'yum install -y rpmbuild/RPMS/noarch/{new_consumer_cert_rpm}')
     # Check server URL is not Red Hat CDN's "subscription.rhsm.redhat.com"
-    assert 'subscription.rhsm.redhat.com' != vm.subscription_config['server']['hostname']
+    assert vm.subscription_config['server']['hostname'] != 'subscription.rhsm.redhat.com'
     assert target_sat.hostname == vm.subscription_config['server']['hostname']
 
     # Register as final check
@@ -161,8 +162,6 @@ def test_negative_register_twice(module_ak_with_cv, module_org, rhel_contenthost
     :expectedresults: host cannot be registered twice
 
     :parametrized: yes
-
-    :CaseLevel: System
     """
     rhel_contenthost.register(module_org, None, module_ak_with_cv.name, target_sat)
     assert rhel_contenthost.subscribed
@@ -172,6 +171,46 @@ def test_negative_register_twice(module_ak_with_cv, module_org, rhel_contenthost
     # host being already registered.
     assert result.status == 1
     assert 'This system is already registered' in str(result.stderr)
+
+
+@pytest.mark.rhel_ver_match('[^6]')
+@pytest.mark.tier3
+def test_positive_force_register_twice(module_ak_with_cv, module_org, rhel_contenthost, target_sat):
+    """Register a host twice to Satellite, with force=true
+
+    :id: 7ccd4efd-54bb-4207-9acf-4c6243a32fab
+
+    :expectedresults: Host will be re-registered
+
+    :parametrized: yes
+
+    :BZ: 1361309
+
+    :customerscenario: true
+    """
+    reg_id_pattern = r"The system has been registered with ID: ([^\n]*)"
+    name = gen_string('alpha') + ".example.com"
+    rhel_contenthost.execute(f'hostnamectl set-hostname {name}')
+    result = rhel_contenthost.register(module_org, None, module_ak_with_cv.name, target_sat)
+    reg_id_old = re.search(reg_id_pattern, result.stdout).group(1)
+    assert result.status == 0
+    assert rhel_contenthost.subscribed
+    result = rhel_contenthost.register(
+        module_org, None, module_ak_with_cv.name, target_sat, force=True
+    )
+    assert result.status == 0
+    assert rhel_contenthost.subscribed
+    assert f'Unregistering from: {target_sat.hostname}' in str(result.stdout)
+    assert f'The registered system name is: {rhel_contenthost.hostname}' in str(result.stdout)
+    reg_id_new = re.search(reg_id_pattern, result.stdout).group(1)
+    assert f'The system has been registered with ID: {reg_id_new}' in str(result.stdout)
+    assert reg_id_new != reg_id_old
+    assert (
+        target_sat.cli.Host.info({'name': rhel_contenthost.hostname}, output_format='json')[
+            'subscription-information'
+        ]['uuid']
+        == reg_id_new
+    )
 
 
 @pytest.mark.tier1
@@ -188,3 +227,54 @@ def test_negative_global_registration_without_ak(module_target_sat):
         'Failed to generate registration command:\n  Missing activation key!'
         in context.value.message
     )
+
+
+@pytest.mark.rhel_ver_match('8')
+def test_positive_custom_facts_for_host_registration(
+    module_sca_manifest_org,
+    module_location,
+    module_target_sat,
+    rhel_contenthost,
+    module_activation_key,
+):
+    """Attempt to register a host and check all the interfaces are created from the custom facts
+
+    :id: db73c146-4557-4bf4-a8e2-950ecba31620
+
+    :steps:
+        1. Register the host.
+        2. Check the host is registered and all the interfaces are created successfully.
+
+    :expectedresults: Host registered successfully with all interfaces created from the custom facts.
+
+    :BZ: 2250397
+
+    :customerscenario: true
+    """
+    interfaces = [
+        {'name': gen_string('alphanumeric')},
+        {'name': 'enp98s0f0', 'mac': gen_mac(multicast=False)},
+        {'name': 'Datos', 'vlan_id': gen_string('numeric', 4)},
+        {'name': 'bondBk', 'vlan_id': gen_string('numeric', 4)},
+    ]
+    facts = {
+        f'net.interface.{interfaces[0]["name"]}.mac_address': gen_mac(),
+        f'net.interface.{interfaces[1]["name"]}.mac_address': interfaces[1]["mac"],
+        f'net.interface.{interfaces[2]["name"]}.{interfaces[2]["vlan_id"]}.mac_address': gen_mac(),
+        f'net.interface.{interfaces[3]["name"]}.{interfaces[3]["vlan_id"]}.mac_address': gen_mac(),
+    }
+    _, facts_file = mkstemp(suffix='.facts')
+    with open(facts_file, 'w') as f:
+        json.dump(facts, f, indent=4)
+    rhel_contenthost.put(facts_file, '/etc/rhsm/facts/')
+    result = rhel_contenthost.register(
+        module_sca_manifest_org, module_location, [module_activation_key.name], module_target_sat
+    )
+    assert result.status == 0, f'Failed to register host: {result.stderr}'
+    host_info = module_target_sat.cli.Host.info(
+        {'name': rhel_contenthost.hostname}, output_format='json'
+    )
+    assert len(host_info['network-interfaces']) == len(interfaces) + 1  # facts + default interface
+    for interface in interfaces:
+        for interface_name in interface.values():
+            assert interface_name in str(host_info['network-interfaces'])

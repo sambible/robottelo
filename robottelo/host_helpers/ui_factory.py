@@ -3,6 +3,7 @@ It is not meant to be used directly, but as part of a robottelo.hosts.Satellite 
 Need to pass the existing session object to the ui_factory method as a parameter
 example: my_satellite.ui_factory(session).ui_method()
 """
+
 from fauxfactory import gen_string
 
 from robottelo.constants import DEFAULT_CV, ENVIRONMENT
@@ -18,12 +19,14 @@ class UIFactory:
     def create_fake_host(
         self,
         host,
-        interface_id=gen_string('alpha'),
+        interface_id=None,
         global_parameters=None,
         host_parameters=None,
         extra_values=None,
         new_host_details=False,
     ):
+        if interface_id is None:
+            interface_id = gen_string('alpha')
         if extra_values is None:
             extra_values = {}
         os_name = f'{host.operatingsystem.name} {host.operatingsystem.major}'

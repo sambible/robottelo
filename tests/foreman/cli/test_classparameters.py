@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: Puppet
 
 :CaseImportance: Medium
 
 :Team: Rocket
 
-:TestType: Functional
-
-:Upstream: No
 """
+
 import pytest
 
 from robottelo.config import settings
@@ -71,6 +67,7 @@ class TestSmartClassParameters:
     @pytest.mark.e2e
     def test_positive_list(
         self,
+        request,
         session_puppet_enabled_sat,
         module_puppet_org,
         module_puppet_loc,
@@ -90,6 +87,7 @@ class TestSmartClassParameters:
             location=module_puppet_loc.id,
             environment=module_puppet['env'].name,
         ).create()
+        request.addfinalizer(host.delete)
         host.add_puppetclass(data={'puppetclass_id': module_puppet['class']['id']})
         hostgroup = session_puppet_enabled_sat.cli_factory.hostgroup(
             {

@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: InterSatelliteSync
 
 :Team: Phoenix-subscriptions
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import pytest
 
 from robottelo.constants import PULP_EXPORT_DIR

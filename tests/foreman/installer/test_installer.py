@@ -1,21 +1,17 @@
 """Smoke tests to check installation health
 
-:Requirement: Installer
+:Requirement: Installation
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
-:CaseComponent: Installer
+:CaseComponent: Installation
 
 :Team: Platform
 
-:TestType: Functional
-
 :CaseImportance: Critical
 
-:Upstream: No
 """
+
 import pytest
 import requests
 
@@ -1359,9 +1355,10 @@ def install_satellite(satellite, installer_args, enable_fapolicyd=False):
         snap=settings.server.version.snap,
     )
     if enable_fapolicyd:
-        satellite.execute(
-            'dnf -y install fapolicyd && systemctl enable --now fapolicyd'
-        ).status == 0
+        assert (
+            satellite.execute('dnf -y install fapolicyd && systemctl enable --now fapolicyd').status
+            == 0
+        )
     satellite.execute('dnf -y module enable satellite:el8 && dnf -y install satellite')
     if enable_fapolicyd:
         assert satellite.execute('rpm -q foreman-fapolicyd').status == 0
@@ -1385,8 +1382,7 @@ def sat_default_install(module_sat_ready_rhels):
         f'foreman-initial-admin-password {settings.server.admin_password}',
     ]
     install_satellite(module_sat_ready_rhels[0], installer_args)
-    yield module_sat_ready_rhels[0]
-    common_sat_install_assertions(module_sat_ready_rhels[0])
+    return module_sat_ready_rhels[0]
 
 
 @pytest.fixture(scope='module')
@@ -1397,15 +1393,19 @@ def sat_non_default_install(module_sat_ready_rhels):
         f'foreman-initial-admin-password {settings.server.admin_password}',
         'foreman-rails-cache-store type:file',
         'foreman-proxy-content-pulpcore-hide-guarded-distributions false',
+        'enable-foreman-plugin-discovery',
+        'foreman-proxy-plugin-discovery-install-images true',
     ]
     install_satellite(module_sat_ready_rhels[1], installer_args, enable_fapolicyd=True)
-    yield module_sat_ready_rhels[1]
-    common_sat_install_assertions(module_sat_ready_rhels[1])
+    module_sat_ready_rhels[1].execute(
+        'dnf -y --disableplugin=foreman-protector install foreman-discovery-image'
+    )
+    return module_sat_ready_rhels[1]
 
 
 @pytest.mark.e2e
 @pytest.mark.tier1
-@pytest.mark.pit_client
+@pytest.mark.pit_server
 @pytest.mark.parametrize(
     'setting_update', [f'http_proxy={settings.http_proxy.un_auth_proxy_url}'], indirect=True
 )
@@ -1577,8 +1577,6 @@ def test_positive_selinux_foreman_module(target_sat):
         1. Check "foreman-selinux" package availability on satellite.
         2. Check SELinux foreman module on satellite.
 
-    :CaseLevel: System
-
     :expectedresults: Foreman RPM and SELinux module are both present on the satellite
     """
     rpm_result = target_sat.execute('rpm -q foreman-selinux')
@@ -1623,23 +1621,13 @@ def test_positive_check_installer_hammer_ping(target_sat):
     :customerscenario: true
 
     :expectedresults: All services are active (running)
-
-    :CaseLevel: System
     """
     # check status reported by hammer ping command
     result = target_sat.execute('hammer ping')
-    test_result = {}
-    service = None
-    for line in result.stdout.strip().replace(' ', '').split('\n'):
-        if line.split(':')[0] not in ('Status', 'ServerResponse', 'message'):
-            service = line.split(':')[0]
-            test_result[service] = {}
-        else:
-            key, value = line.split(":", 1)
-            test_result[service][key] = value
-
-    not_ok = {svc: result for svc, result in test_result.items() if result['Status'] != 'ok'}
-    assert not not_ok
+    assert result.status == 0
+    for line in result.stdout.split('\n'):
+        if 'Status' in line:
+            assert 'ok' in line
 
 
 @pytest.mark.e2e
@@ -1692,8 +1680,6 @@ def test_satellite_installation_on_ipv6():
         4: Satellite service restart should work.
         5: After system reboot all the services comes to up state.
 
-    :CaseLevel: System
-
     :CaseAutomation: NotAutomated
     """
 
@@ -1714,8 +1700,6 @@ def test_capsule_installation_on_ipv6():
         2. After installation, All the Services should be up and running.
         3. Satellite service restart should work.
         4. After system reboot all the services come to up state.
-
-    :CaseLevel: System
 
     :CaseAutomation: NotAutomated
     """
@@ -1738,8 +1722,6 @@ def test_installer_check_on_ipv6():
     :expectedresults:
         1. Tuning parameter set successfully for medium size.
         2. custom-hiera.yaml related changes should be successfully applied.
-
-    :CaseLevel: System
 
     :CaseAutomation: NotAutomated
     """
@@ -1766,8 +1748,6 @@ def test_installer_cap_pub_directory_accessibility(capsule_configured):
 
     :CaseImportance: High
 
-    :CaseLevel: System
-
     :BZ: 1860519
 
     :customerscenario: true
@@ -1780,7 +1760,10 @@ def test_installer_cap_pub_directory_accessibility(capsule_configured):
     https_curl_command = f'curl -i {capsule_configured.url}/pub/ -k'
     for command in [http_curl_command, https_curl_command]:
         accessibility_check = capsule_configured.execute(command)
-        assert 'HTTP/1.1 200 OK' or 'HTTP/2 200 ' in accessibility_check.stdout.split('\r\n')
+        assert (
+            'HTTP/1.1 200 OK' in accessibility_check.stdout
+            or 'HTTP/2 200' in accessibility_check.stdout
+        )
     capsule_configured.get(
         local_path='custom-hiera-capsule.yaml',
         remote_path=f'{custom_hiera_location}',
@@ -1790,7 +1773,8 @@ def test_installer_cap_pub_directory_accessibility(capsule_configured):
     assert 'Success!' in command_output.stdout
     for command in [http_curl_command, https_curl_command]:
         accessibility_check = capsule_configured.execute(command)
-        assert 'HTTP/1.1 200 OK' or 'HTTP/2 200 ' not in accessibility_check.stdout.split('\r\n')
+        assert 'HTTP/1.1 200 OK' not in accessibility_check.stdout
+        assert 'HTTP/2 200' not in accessibility_check.stdout
     capsule_configured.put(
         local_path='custom-hiera-capsule.yaml',
         remote_path=f'{custom_hiera_location}',
@@ -1799,10 +1783,41 @@ def test_installer_cap_pub_directory_accessibility(capsule_configured):
     assert 'Success!' in command_output.stdout
 
 
+def test_installer_capsule_with_enabled_ansible(module_capsule_configured_ansible):
+    """Enables Ansible feature on external Capsule and checks the callback is set correctly
+
+    :id: d60c475e-f4e7-11ee-af8a-98fa9b11ac24
+
+    :steps:
+        1. Have a Satellite with external Capsule integrated
+        2. Enable Ansible feature on external Capsule
+        3. Check the ansible callback plugin on external Capsule
+
+    :expectedresults:
+        Ansible callback plugin is overridden to "redhat.satellite.foreman"
+
+    :CaseImportance: High
+
+    :BZ: 2245081
+
+    :customerscenario: true
+    """
+    ansible_env = '/etc/foreman-proxy/ansible.env'
+    downstream_callback = 'redhat.satellite.foreman'
+    callback_whitelist = module_capsule_configured_ansible.execute(
+        f"awk -F= '/ANSIBLE_CALLBACK_WHITELIST/{{print$2}}' {ansible_env}"
+    )
+    assert callback_whitelist.stdout.strip('" \n') == downstream_callback
+    callbacks_enabled = module_capsule_configured_ansible.execute(
+        f"awk -F= '/ANSIBLE_CALLBACKS_ENABLED/{{print$2}}' {ansible_env}"
+    )
+    assert callbacks_enabled.stdout.strip('" \n') == downstream_callback
+
+
 @pytest.mark.tier1
 @pytest.mark.build_sanity
 @pytest.mark.first_sanity
-@pytest.mark.pit_client
+@pytest.mark.pit_server
 def test_satellite_installation(installer_satellite):
     """Run a basic Satellite installation
 
@@ -1823,7 +1838,6 @@ def test_satellite_installation(installer_satellite):
         5. redis is set as default foreman cache
 
     :CaseImportance: Critical
-
     """
     common_sat_install_assertions(installer_satellite)
 
@@ -1831,3 +1845,33 @@ def test_satellite_installation(installer_satellite):
     assert installer_satellite.execute('rpm -q foreman-redis').status == 0
     settings_file = installer_satellite.load_remote_yaml_file(FOREMAN_SETTINGS_YML)
     assert settings_file.rails_cache_store.type == 'redis'
+
+
+@pytest.mark.pit_server
+@pytest.mark.parametrize('package', ['nmap-ncat'])
+def test_weak_dependency(sat_non_default_install, package):
+    """Check if Satellite and its (sub)components do not require certain (potentially insecure) packages. On an existing Satellite the package has to be either not installed or can be safely removed.
+
+    :id: c7988920-2f8c-4646-bde9-8823a3ca96bb
+
+    :steps:
+        1. Use satellite with non-default setup (for 'nmap-ncat' enable foreman discovery plugin and install foreman-discovery-image)
+        2. Attempt to remove the package
+
+    :expectedresults:
+        1. The package can be either not installed or can be removed without removing any Satellite or Foreman packages
+
+    :BZ: 1964539
+
+    :customerscenario: true
+    """
+    result = sat_non_default_install.execute(f'dnf remove -y {package} --setopt tsflags=test')
+
+    # no satellite or foreman package to be removed
+    assert 'satellite' not in result.stdout.lower()
+    assert 'foreman' not in result.stdout.lower()
+    # package not installed (nothing to remove) or safely removable
+    assert (
+        'No packages marked for removal.' in result.stderr
+        or 'Transaction test succeeded.' in result.stdout
+    )

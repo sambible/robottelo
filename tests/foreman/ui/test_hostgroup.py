@@ -6,18 +6,13 @@
 
 :CaseComponent: HostGroup
 
-:CaseLevel: Integration
-
 :Team: Endeavour
-
-:TestType: Functional
 
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from fauxfactory import gen_string
-from nailgun import entities
 import pytest
 
 from robottelo.config import settings
@@ -26,7 +21,7 @@ from robottelo.constants import DEFAULT_CV, ENVIRONMENT
 
 @pytest.mark.e2e
 @pytest.mark.tier2
-def test_positive_end_to_end(session, module_org, module_location):
+def test_positive_end_to_end(session, module_org, module_location, module_target_sat):
     """Perform end to end testing for host group component
 
     :id: 537d95f2-fe32-4e06-a2cb-21c80fe8e2e2
@@ -38,10 +33,12 @@ def test_positive_end_to_end(session, module_org, module_location):
     name = gen_string('alpha')
     new_name = gen_string('alpha')
     description = gen_string('alpha')
-    architecture = entities.Architecture().create()
-    os = entities.OperatingSystem(architecture=[architecture]).create()
+    architecture = module_target_sat.api.Architecture().create()
+    os = module_target_sat.api.OperatingSystem(architecture=[architecture]).create()
     os_name = f'{os.name} {os.major}'
-    domain = entities.Domain(organization=[module_org], location=[module_location]).create()
+    domain = module_target_sat.api.Domain(
+        organization=[module_org], location=[module_location]
+    ).create()
     with session:
         # Create host group with some data
         session.hostgroup.create(
@@ -67,11 +64,13 @@ def test_positive_end_to_end(session, module_org, module_location):
         assert session.hostgroup.search(new_name)[0]['Name'] == new_name
         # Delete host group
         session.hostgroup.delete(new_name)
-        assert not entities.HostGroup().search(query={'search': f'name={new_name}'})
+        assert not module_target_sat.api.HostGroup().search(query={'search': f'name={new_name}'})
 
 
 @pytest.mark.tier2
-def test_negative_delete_with_discovery_rule(session, module_org, module_location):
+def test_negative_delete_with_discovery_rule(
+    session, module_org, module_location, module_target_sat
+):
     """Attempt to delete hostgroup which has dependent discovery rule
 
     :id: bd046e9a-f0d0-4110-8f94-fd04193cb3af
@@ -85,8 +84,10 @@ def test_negative_delete_with_discovery_rule(session, module_org, module_locatio
 
     :CaseImportance: High
     """
-    hostgroup = entities.HostGroup(organization=[module_org], location=[module_location]).create()
-    entities.DiscoveryRule(
+    hostgroup = module_target_sat.api.HostGroup(
+        organization=[module_org], location=[module_location]
+    ).create()
+    module_target_sat.api.DiscoveryRule(
         hostgroup=hostgroup, organization=[module_org], location=[module_location]
     ).create()
     with session:
@@ -179,7 +180,7 @@ def test_positive_create_new_host():
 
     :id: 49704437-5ca1-46cb-b74e-de58396add37
 
-    :Steps:
+    :steps:
 
         1. Create hostgroup with the Content Source field populated.
         2. Create host from Hosts > Create Host, selecting the hostgroup in the Host Group field.
@@ -202,7 +203,7 @@ def test_positive_nested_host_groups(
 
     :id: 547f8e72-df65-48eb-aeb1-6b5fd3cbf4e5
 
-    :Steps:
+    :steps:
 
         1. Create the parent host-group.
         2. Create, Update and Delete the nested host-group.
@@ -276,7 +277,7 @@ def test_positive_clone_host_groups(
 
     :id: 9f02dcc5-98aa-48bd-8114-edd3a0be65c1
 
-    :Steps:
+    :steps:
         1. Create the host-group.
         2. Clone the host-group created in step 1
         3. Update and Delete the cloned host-group.

@@ -4,18 +4,13 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Integration
-
 :CaseComponent: TemplatesPlugin
 
 :Team: Endeavour
 
-:TestType: Functional
-
-:Upstream: No
 """
+
 from fauxfactory import gen_string
-from nailgun import entities
 import pytest
 import requests
 
@@ -24,13 +19,13 @@ from robottelo.constants import FOREMAN_TEMPLATE_IMPORT_URL, FOREMAN_TEMPLATE_RO
 
 
 @pytest.fixture(scope='module')
-def templates_org():
-    return entities.Organization().create()
+def templates_org(module_target_sat):
+    return module_target_sat.api.Organization().create()
 
 
 @pytest.fixture(scope='module')
-def templates_loc(templates_org):
-    return entities.Location(organization=[templates_org]).create()
+def templates_loc(templates_org, module_target_sat):
+    return module_target_sat.api.Location(organization=[templates_org]).create()
 
 
 git = settings.git
@@ -45,7 +40,7 @@ def test_positive_import_templates(session, templates_org, templates_loc):
 
     :bz: 1778181, 1778139
 
-    :Steps:
+    :steps:
 
         1. Navigate to Host -> Sync Templates, and choose Import.
         2. Select fields:
@@ -102,7 +97,7 @@ def test_positive_export_templates(session, create_import_export_local_dir, targ
 
     :bz: 1778139
 
-    :Steps:
+    :steps:
 
         1. Navigate to Host -> Sync Templates, and choose Export.
         2. Select fields:
@@ -163,7 +158,7 @@ def test_positive_export_filtered_templates_to_git(session, git_repository, git_
 
     :id: e4de338a-9ab9-492e-ac42-6cc2ebcd1792
 
-    :Steps:
+    :steps:
         1. Export only the templates matching with regex e.g: `^atomic.*` to git repo.
 
     :expectedresults:

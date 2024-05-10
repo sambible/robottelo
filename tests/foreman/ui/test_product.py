@@ -4,22 +4,17 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: Repositories
 
 :team: Phoenix-content
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from datetime import timedelta
 
 from fauxfactory import gen_choice
-from nailgun import entities
 import pytest
 
 from robottelo.config import settings
@@ -33,20 +28,18 @@ from robottelo.utils.datafactory import (
 
 
 @pytest.fixture(scope='module')
-def module_org():
-    return entities.Organization().create()
+def module_org(module_target_sat):
+    return module_target_sat.api.Organization().create()
 
 
 @pytest.mark.tier2
 @pytest.mark.skipif((not settings.robottelo.REPOS_HOSTING_URL), reason='Missing repos_hosting_url')
-def test_positive_end_to_end(session, module_org):
+def test_positive_end_to_end(session, module_org, module_target_sat):
     """Perform end to end testing for product component
 
     :id: d0e1f0d1-2380-4508-b270-62c1d8b3e2ff
 
     :expectedresults: All expected CRUD actions finished successfully
-
-    :CaseLevel: Integration
 
     :CaseImportance: Critical
     """
@@ -54,11 +47,11 @@ def test_positive_end_to_end(session, module_org):
     new_product_name = gen_string('alpha')
     product_label = gen_string('alpha')
     product_description = gen_string('alpha')
-    gpg_key = entities.GPGKey(
+    gpg_key = module_target_sat.api.GPGKey(
         content=DataFile.VALID_GPG_KEY_FILE.read_text(),
         organization=module_org,
     ).create()
-    sync_plan = entities.SyncPlan(organization=module_org).create()
+    sync_plan = module_target_sat.api.SyncPlan(organization=module_org).create()
     with session:
         # Create new product using different parameters
         session.product.create(
@@ -104,7 +97,7 @@ def test_positive_end_to_end(session, module_org):
 
 @pytest.mark.parametrize('product_name', **parametrized(valid_data_list('ui')))
 @pytest.mark.tier2
-def test_positive_create_in_different_orgs(session, product_name):
+def test_positive_create_in_different_orgs(session, product_name, module_target_sat):
     """Create Product with same name but in different organizations
 
     :id: 469fc036-a48a-4c0a-9da9-33e73f903479
@@ -113,10 +106,8 @@ def test_positive_create_in_different_orgs(session, product_name):
 
     :expectedresults: Product is created successfully in both
         organizations.
-
-    :CaseLevel: Integration
     """
-    orgs = [entities.Organization().create() for _ in range(2)]
+    orgs = [module_target_sat.api.Organization().create() for _ in range(2)]
     with session:
         for org in orgs:
             session.organization.select(org_name=org.name)
@@ -127,20 +118,18 @@ def test_positive_create_in_different_orgs(session, product_name):
 
 
 @pytest.mark.tier2
-def test_positive_product_create_with_create_sync_plan(session, module_org):
+def test_positive_product_create_with_create_sync_plan(session, module_org, module_target_sat):
     """Perform Sync Plan Create from Product Create Page
 
     :id: 4a87b533-12b6-4d4e-8a99-4bb95efc4321
 
     :expectedresults: Ensure sync get created and assigned to Product.
 
-    :CaseLevel: Integration
-
     :CaseImportance: Medium
     """
     product_name = gen_string('alpha')
     product_description = gen_string('alpha')
-    gpg_key = entities.GPGKey(
+    gpg_key = module_target_sat.api.GPGKey(
         content=DataFile.VALID_GPG_KEY_FILE.read_text(),
         organization=module_org,
     ).create()
@@ -173,14 +162,14 @@ def test_positive_product_create_with_create_sync_plan(session, module_org):
 
 
 @pytest.mark.tier2
-def test_positive_bulk_action_advanced_sync(session, module_org):
+def test_positive_bulk_action_advanced_sync(session, module_org, module_target_sat):
     """Advanced sync is available as a bulk action in the product.
 
     :id: 7e9bb306-452d-43b8-8725-604b4aebb222
 
     :customerscenario: true
 
-    :Steps:
+    :steps:
         1. Enable or create a repository and sync it.
         2. Navigate to Content > Product > click on the product.
         3. Click Select Action > Advanced Sync.
@@ -188,7 +177,7 @@ def test_positive_bulk_action_advanced_sync(session, module_org):
     :expectedresults: Advanced sync for repositories can be run as a bulk action from the product.
     """
     repo_name = gen_string('alpha')
-    product = entities.Product(organization=module_org).create()
+    product = module_target_sat.api.Product(organization=module_org).create()
     with session:
         session.repository.create(
             product.name,

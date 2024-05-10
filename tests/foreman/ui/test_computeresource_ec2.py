@@ -4,20 +4,15 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: ComputeResources-EC2
 
 :Team: Rocket
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from fauxfactory import gen_string
-from nailgun import entities
 import pytest
 
 from robottelo.config import settings
@@ -49,13 +44,13 @@ def module_ec2_settings():
 @pytest.mark.skip_if_not_set('http_proxy')
 @pytest.mark.skip_if_open("BZ:2032530")
 def test_positive_default_end_to_end_with_custom_profile(
-    session, module_org, module_location, module_ec2_settings
+    session, module_org, module_location, module_ec2_settings, module_target_sat
 ):
     """Create EC2 compute resource with default properties and apply it's basic functionality.
 
     :id: 33f80a8f-2ecf-4f15-b0c3-aab5fe0ac8d3
 
-    :Steps:
+    :steps:
 
         1. Create an EC2 compute resource with default properties and taxonomies.
         2. Update the compute resource name and add new taxonomies.
@@ -65,8 +60,6 @@ def test_positive_default_end_to_end_with_custom_profile(
     :expectedresults: The EC2 compute resource is created, updated, compute profile associated and
         deleted.
 
-    :CaseLevel: Integration
-
     :BZ: 1451626, 2032530
 
     :CaseImportance: High
@@ -74,9 +67,9 @@ def test_positive_default_end_to_end_with_custom_profile(
     cr_name = gen_string('alpha')
     new_cr_name = gen_string('alpha')
     cr_description = gen_string('alpha')
-    new_org = entities.Organization().create()
-    new_loc = entities.Location().create()
-    http_proxy = entities.HTTPProxy(
+    new_org = module_target_sat.api.Organization().create()
+    new_loc = module_target_sat.api.Location().create()
+    http_proxy = module_target_sat.api.HTTPProxy(
         name=gen_string('alpha', 15),
         url=settings.http_proxy.auth_proxy_url,
         username=settings.http_proxy.username,
@@ -162,8 +155,6 @@ def test_positive_create_ec2_with_custom_region(session, module_ec2_settings):
         successfully.
 
     :BZ: 1456942
-
-    :CaseLevel: Integration
 
     :CaseImportance: Critical
     """

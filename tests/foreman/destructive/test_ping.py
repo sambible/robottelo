@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: Hammer
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: Critical
 
-:Upstream: No
 """
+
 import pytest
 
 pytestmark = pytest.mark.destructive

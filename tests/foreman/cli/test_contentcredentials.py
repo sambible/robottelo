@@ -6,18 +6,14 @@ Satellite 6.8
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: ContentCredentials
 
 :team: Phoenix-content
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from tempfile import mkstemp
 
 from fauxfactory import gen_alphanumeric, gen_choice, gen_integer, gen_string
@@ -381,8 +377,6 @@ def test_positive_add_empty_product(target_sat, module_org):
     :id: 61c700db-43ab-4b8c-8527-f4cfc085afaa
 
     :expectedresults: gpg key is associated with product
-
-    :CaseLevel: Integration
     """
     gpg_key = target_sat.cli_factory.make_content_credential({'organization-id': module_org.id})
     product = target_sat.cli_factory.make_product(
@@ -400,8 +394,6 @@ def test_positive_add_product_with_repo(target_sat, module_org):
 
     :expectedresults: gpg key is associated with product as well as with
         the repository
-
-    :CaseLevel: Integration
     """
     product = target_sat.cli_factory.make_product({'organization-id': module_org.id})
     repo = target_sat.cli_factory.make_repository(
@@ -427,8 +419,6 @@ def test_positive_add_product_with_repos(target_sat, module_org):
 
     :expectedresults: gpg key is associated with product as well as with
         the repositories
-
-    :CaseLevel: Integration
     """
     product = target_sat.cli_factory.make_product({'organization-id': module_org.id})
     repos = [
@@ -456,8 +446,6 @@ def test_positive_add_repo_from_product_with_repo(target_sat, module_org):
 
     :expectedresults: gpg key is associated with the repository but not
         with the product
-
-    :CaseLevel: Integration
     """
     product = target_sat.cli_factory.make_product({'organization-id': module_org.id})
     repo = target_sat.cli_factory.make_repository(
@@ -484,8 +472,6 @@ def test_positive_add_repo_from_product_with_repos(target_sat, module_org):
     :id: e3019a61-ec32-4044-9087-e420b8db4e09
 
     :expectedresults: gpg key is associated with the repository
-
-    :CaseLevel: Integration
     """
     product = target_sat.cli_factory.make_product({'organization-id': module_org.id})
     repos = [
@@ -517,8 +503,6 @@ def test_positive_update_key_for_empty_product(target_sat, module_org):
 
     :expectedresults: gpg key is associated with product before/after
         update
-
-    :CaseLevel: Integration
     """
     # Create a product and a gpg key
     product = target_sat.cli_factory.make_product({'organization-id': module_org.id})
@@ -555,8 +539,6 @@ def test_positive_update_key_for_product_with_repo(target_sat, module_org):
 
     :expectedresults: gpg key is associated with product before/after
         update as well as with the repository
-
-    :CaseLevel: Integration
     """
     # Create a product and a gpg key
     product = target_sat.cli_factory.make_product({'organization-id': module_org.id})
@@ -602,8 +584,6 @@ def test_positive_update_key_for_product_with_repos(target_sat, module_org):
 
     :expectedresults: gpg key is associated with product before/after
         update as well as with the repositories
-
-    :CaseLevel: Integration
     """
     # Create a product and a gpg key
     product = target_sat.cli_factory.make_product({'organization-id': module_org.id})
@@ -652,8 +632,6 @@ def test_positive_update_key_for_repo_from_product_with_repo(target_sat, module_
 
     :expectedresults: gpg key is associated with the repository
         before/after update, but not with the product
-
-    :CaseLevel: Integration
     """
     # Create a product and a gpg key
     product = target_sat.cli_factory.make_product({'organization-id': module_org.id})
@@ -693,8 +671,6 @@ def test_positive_update_key_for_repo_from_product_with_repos(target_sat, module
     :expectedresults: gpg key is associated with a single repository
         before/after update and not associated with product or other
         repositories
-
-    :CaseLevel: Integration
     """
     # Create a product and a gpg key
     product = target_sat.cli_factory.make_product({'organization-id': module_org.id})

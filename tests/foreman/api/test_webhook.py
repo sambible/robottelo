@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: HooksandWebhooks
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import re
 
 import pytest
@@ -61,8 +57,8 @@ def assert_event_triggered(channel, event):
     try:
         log = _wait_for_log(channel, pattern)
         assert pattern in log
-    except TimedOutError:
-        raise AssertionError(f'Timed out waiting for {pattern} from VM')
+    except TimedOutError as err:
+        raise AssertionError(f'Timed out waiting for {pattern} from VM') from err
 
 
 class TestWebhook:
@@ -80,7 +76,7 @@ class TestWebhook:
             target_sat.api.Webhooks(event='invalid_event').create()
 
     @pytest.mark.tier2
-    @pytest.mark.parametrize('event', **parametrized(WEBHOOK_EVENTS))
+    @pytest.mark.parametrize('event', WEBHOOK_EVENTS)
     def test_positive_valid_event(self, event, target_sat):
         """Test positive webhook creation with a valid event
 

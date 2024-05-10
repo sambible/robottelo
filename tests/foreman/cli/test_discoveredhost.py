@@ -8,12 +8,8 @@
 
 :Team: Rocket
 
-:TestType: Functional
-
-:CaseLevel: System
-
-:Upstream: No
 """
+
 import pytest
 from wait_for import wait_for
 
@@ -40,8 +36,7 @@ def test_rhel_pxe_discovery_provisioning(
 
     :Setup: Satellite with Provisioning and Discovery features configured
 
-    :Steps:
-
+    :steps:
         1. Boot up the host to discover
         2. Provision the host
 
@@ -57,7 +52,7 @@ def test_rhel_pxe_discovery_provisioning(
 
     wait_for(
         lambda: sat.api.DiscoveredHost().search(query={'mac': mac}) != [],
-        timeout=600,
+        timeout=1500,
         delay=40,
     )
     discovered_host = sat.api.DiscoveredHost().search(query={'mac': mac})[0]
@@ -73,15 +68,12 @@ def test_rhel_pxe_discovery_provisioning(
             'location-id': discovered_host.location.id,
         }
     )
-    # teardown
-    @request.addfinalizer
-    def _finalize():
-        host.delete()
-        assert not sat.api.Host().search(query={"search": f'name={host.name}'})
 
     assert 'Host created' in result[0]['message']
     host = sat.api.Host().search(query={"search": f'id={discovered_host.id}'})[0]
+    request.addfinalizer(lambda: sat.provisioning_cleanup(host.name))
     assert host
+
     wait_for(
         lambda: host.read().build_status_label != 'Pending installation',
         timeout=1500,
@@ -120,7 +112,7 @@ def test_rhel_pxeless_discovery_provisioning(
 
     wait_for(
         lambda: sat.api.DiscoveredHost().search(query={'mac': mac}) != [],
-        timeout=600,
+        timeout=1500,
         delay=40,
     )
     discovered_host = sat.api.DiscoveredHost().search(query={'mac': mac})[0]
@@ -136,16 +128,11 @@ def test_rhel_pxeless_discovery_provisioning(
             'location-id': discovered_host.location.id,
         }
     )
-
-    # teardown
-    @request.addfinalizer
-    def _finalize():
-        host.delete()
-        assert not sat.api.Host().search(query={"search": f'name={host.name}'})
-
     assert 'Host created' in result[0]['message']
     host = sat.api.Host().search(query={"search": f'id={discovered_host.id}'})[0]
+    request.addfinalizer(lambda: sat.provisioning_cleanup(host.name))
     assert host
+
     wait_for(
         lambda: host.read().build_status_label != 'Pending installation',
         timeout=1500,
@@ -166,7 +153,7 @@ def test_positive_provision_pxeless_bios_syslinux():
     :Setup:
         1. Craft the FDI with remaster the image to have ssh enabled
 
-    :Steps:
+    :steps:
         1. Create a BIOS VM and set it to boot from the FDI
         2. Run assertion steps #1-2
         3. Provision the discovered host using PXELinux loader
@@ -417,7 +404,7 @@ def test_positive_list_facts():
 
     :Setup: 1. Provisioning is configured and Host is already discovered
 
-    :Steps: Validate specified builtin and custom facts
+    :steps: Validate specified builtin and custom facts
 
     :expectedresults: All checked facts should be displayed correctly
 

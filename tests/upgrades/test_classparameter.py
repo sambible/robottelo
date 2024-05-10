@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Puppet
 
 :Team: Rocket
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import json
 
 import pytest
@@ -87,7 +83,7 @@ class TestScenarioPositivePuppetParameterAndDatatypeIntact:
         :param sc_param: The Actual Value of parameter
         """
         if data['sc_type'] == 'boolean':
-            assert sc_param.default_value == (True if data['value'] == '1' else False)
+            assert sc_param.default_value == (data['value'] == '1')
         elif data['sc_type'] == 'array':
             string_list = [str(element) for element in sc_param.default_value]
             assert str(string_list) == data['value']

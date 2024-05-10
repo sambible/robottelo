@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: Repositories
 
 :team: Phoenix-content
 
-:TestType: Functional
-
 :CaseImportance: Critical
 
-:Upstream: No
 """
+
 import pytest
 from requests.exceptions import HTTPError
 
@@ -121,7 +117,7 @@ def test_positive_disable_rh_repo_with_basearch(module_target_sat, module_entitl
     disabled_repo = module_target_sat.cli.RepositorySet.disable(
         {
             'basearch': DEFAULT_ARCHITECTURE,
-            'name': REPOSET['kickstart']['rhel8'],
+            'name': REPOSET['kickstart']['rhel8_bos'],
             'product-id': repo.product.id,
             'organization-id': module_entitlement_manifest_org.id,
             'releasever': REPOS['kickstart']['rhel8_aps']['version'],

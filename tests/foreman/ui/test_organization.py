@@ -4,20 +4,15 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: OrganizationsandLocations
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from fauxfactory import gen_string
-from nailgun import entities
 import pytest
 
 from robottelo.config import settings
@@ -52,14 +47,12 @@ def module_repos_col(request, module_entitlement_manifest_org, module_lce, modul
 @pytest.mark.e2e
 @pytest.mark.tier2
 @pytest.mark.upgrade
-def test_positive_end_to_end(session):
+def test_positive_end_to_end(session, module_target_sat):
     """Perform end to end testing for organization component
 
     :id: abe878a9-a6bc-41e5-a39a-0fed9012b80f
 
     :expectedresults: All expected CRUD actions finished successfully
-
-    :CaseLevel: Integration
 
     :CaseImportance: Critical
     """
@@ -69,15 +62,15 @@ def test_positive_end_to_end(session):
     description = gen_string('alpha')
 
     # entities to be added and removed
-    user = entities.User().create()
-    media = entities.Media(
+    user = module_target_sat.api.User().create()
+    media = module_target_sat.api.Media(
         path_=INSTALL_MEDIUM_URL % gen_string('alpha', 6), os_family='Redhat'
     ).create()
-    template = entities.ProvisioningTemplate().create()
-    ptable = entities.PartitionTable().create()
-    domain = entities.Domain().create()
-    hostgroup = entities.HostGroup().create()
-    location = entities.Location().create()
+    template = module_target_sat.api.ProvisioningTemplate().create()
+    ptable = module_target_sat.api.PartitionTable().create()
+    domain = module_target_sat.api.Domain().create()
+    hostgroup = module_target_sat.api.HostGroup().create()
+    location = module_target_sat.api.Location().create()
 
     widget_list = [
         'primary',
@@ -196,7 +189,7 @@ def test_positive_search_scoped(session):
 
 @pytest.mark.skip_if_open("BZ:1321543")
 @pytest.mark.tier2
-def test_positive_create_with_all_users(session):
+def test_positive_create_with_all_users(session, module_target_sat):
     """Create organization and new user. Check 'all users' setting for
     organization. Verify that user is assigned to organization and
     vice versa organization is assigned to user
@@ -208,11 +201,9 @@ def test_positive_create_with_all_users(session):
     :expectedresults: Organization and user entities assigned to each other
 
     :BZ: 1321543
-
-    :CaseLevel: Integration
     """
-    user = entities.User().create()
-    org = entities.Organization().create()
+    user = module_target_sat.api.User().create()
+    org = module_target_sat.api.Organization().create()
     with session:
         session.organization.update(org.name, {'users.all_users': True})
         org_values = session.organization.read(org.name, widget_names='users')
@@ -227,19 +218,17 @@ def test_positive_create_with_all_users(session):
 
 @pytest.mark.skip_if_not_set('libvirt')
 @pytest.mark.tier2
-def test_positive_update_compresource(session):
+def test_positive_update_compresource(session, module_target_sat):
     """Add/Remove compute resource from/to organization.
 
     :id: a49349b9-4637-4ef6-b65b-bd3eccb5a12a
 
     :expectedresults: Compute resource is added and then removed.
-
-    :CaseLevel: Integration
     """
     url = f'{LIBVIRT_RESOURCE_URL}{settings.libvirt.libvirt_hostname}'
-    resource = entities.LibvirtComputeResource(url=url).create()
+    resource = module_target_sat.api.LibvirtComputeResource(url=url).create()
     resource_name = resource.name + ' (Libvirt)'
-    org = entities.Organization().create()
+    org = module_target_sat.api.Organization().create()
     with session:
         session.organization.update(
             org.name, {'compute_resources.resources.assigned': [resource_name]}
@@ -264,8 +253,6 @@ def test_positive_delete_with_manifest_lces(session, target_sat, function_entitl
     :id: 2f0d580f-2207-4e5e-86ec-80071a29f56c
 
     :expectedresults: Organization is deleted successfully.
-
-    :CaseLevel: Integration
 
     :CaseImportance: Critical
     """
@@ -294,8 +281,6 @@ def test_positive_download_debug_cert_after_refresh(
 
     :expectedresults: Scenario passed successfully
 
-    :CaseLevel: Integration
-
     :CaseImportance: High
     """
     org = function_entitlement_manifest_org
@@ -306,7 +291,9 @@ def test_positive_download_debug_cert_after_refresh(
                 assert org.download_debug_certificate()
                 session.subscription.refresh_manifest()
     finally:
-        entities.Subscription(organization=org).delete_manifest(data={'organization_id': org.id})
+        target_sat.api.Subscription(organization=org).delete_manifest(
+            data={'organization_id': org.id}
+        )
 
 
 @pytest.mark.tier2
@@ -317,14 +304,12 @@ def test_positive_errata_view_organization_switch(
 
     :id: faad9cf3-f8d5-49a6-87d1-431837b67675
 
-    :Steps: Create an Organization having a product synced which contains errata.
+    :steps: Create an Organization having a product synced which contains errata.
 
     :expectedresults: Verify that the errata belonging to one Organization is not
                       showing in the Default organization.
 
     :CaseImportance: High
-
-    :CaseLevel: Integration
     """
     rc = module_target_sat.cli_factory.RepositoryCollection(
         repositories=[module_target_sat.cli_factory.YumRepository(settings.repos.yum_3.url)]
@@ -346,7 +331,7 @@ def test_positive_product_view_organization_switch(session, module_org, module_p
 
     :id: 50cc459a-3a23-433a-99b9-9f3b929e6d64
 
-    :Steps:
+    :steps:
             1. Create an Organization having a product and verify that product is present in
                the Organization.
             2. Switch the Organization to default and verify that product is not visible in it.
@@ -354,14 +339,12 @@ def test_positive_product_view_organization_switch(session, module_org, module_p
     :expectedresults: Verify that the Product belonging to one Organization is not visible in
                       another organization.
 
-    :CaseLevel: Integration
-
     :CaseImportance: High
     """
     with session:
         assert session.product.search(module_product.name)
         session.organization.select(org_name="Default Organization")
-        assert not session.product.search(module_product.name) == module_product.name
+        assert session.product.search(module_product.name) != module_product.name
 
 
 @pytest.mark.tier2
@@ -384,3 +367,23 @@ def test_positive_prepare_for_sca_only_deprecation(target_sat):
         )
         results = target_sat.execute('tail -100 /var/log/foreman/production.log').stdout
     assert 'Simple Content Access will be required for all organizations in Katello 4.12' in results
+
+
+def test_positive_prepare_for_sca_only_organization(target_sat, function_entitlement_manifest_org):
+    """Verify that the organization details page notifies users that Simple Content Access
+        will be required for all organizations in Satellite 6.16
+
+    :id: 3a6a848b-3c16-4dbb-8f52-5ea57a9a97ef
+
+    :expectedresults: The Organization details page notifies users that Simple Content Access will
+        be required for all organizations in Satellite 6.16
+    """
+    with target_sat.ui_session() as session:
+        session.organization.select(function_entitlement_manifest_org.name)
+        sca_alert = session.organization.read(
+            function_entitlement_manifest_org.name, widget_names='primary'
+        )
+        assert (
+            'Simple Content Access will be required for all organizations in Satellite 6.16.'
+            in sca_alert['primary']['sca_alert']
+        )

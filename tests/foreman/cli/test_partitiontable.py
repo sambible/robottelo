@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Hosts
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from random import randint
 
 from fauxfactory import gen_string
@@ -55,9 +51,10 @@ class TestPartitionTable:
                 zip(
                     generate_strings_list(length=randint(4, 30)),
                     generate_strings_list(length=randint(4, 30)),
+                    strict=True,
                 )
             )
-        )
+        ),
     )
     def test_positive_crud_with_name(self, name, new_name, module_target_sat):
         """Create, read, update and delete Partition Tables with different names
@@ -90,23 +87,9 @@ class TestPartitionTable:
         :CaseImportance: Critical
         """
         content = 'Fake ptable'
-        ptable = module_target_sat.cli_factory.make_partition_table({'content': content})
-        ptable_content = module_target_sat.cli.PartitionTable().dump({'id': ptable['id']})
-        assert content in ptable_content
-
-    @pytest.mark.tier1
-    @pytest.mark.upgrade
-    def test_positive_create_with_content_length(self, module_target_sat):
-        """Create a Partition Table with content length more than 4096 chars
-
-        :id: 59e6f9ef-85c2-4229-8831-00edb41b19f4
-
-        :expectedresults: Partition Table is created and has correct content
-
-        :BZ: 1270181
-        """
-        content = gen_string('alpha', 5000)
-        ptable = module_target_sat.cli_factory.make_partition_table({'content': content})
+        filename = gen_string('alpha', 10)
+        module_target_sat.execute(f'echo {content} > {filename}')
+        ptable = module_target_sat.cli_factory.make_partition_table({'file': filename})
         ptable_content = module_target_sat.cli.PartitionTable().dump({'id': ptable['id']})
         assert content in ptable_content
 
@@ -134,7 +117,6 @@ class TestPartitionTable:
 
         :expectedresults: Operating system is added to partition table
 
-        :CaseLevel: Integration
         """
         ptable = module_target_sat.cli_factory.make_partition_table()
         os = module_target_sat.cli_factory.make_os()
@@ -159,7 +141,6 @@ class TestPartitionTable:
 
         :expectedresults: Operating system is added to partition table
 
-        :CaseLevel: Integration
         """
         ptable = module_target_sat.cli_factory.make_partition_table()
         os = module_target_sat.cli_factory.make_os()

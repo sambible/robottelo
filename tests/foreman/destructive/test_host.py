@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Hosts
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from airgun.exceptions import NoSuchElementException
 import pytest
 
@@ -40,8 +36,6 @@ class TestHostCockpit:
         :expectedresults: Cockpit page is loaded and displays sat host info
 
         :BZ: 1876220
-
-        :CaseLevel: System
 
         :steps:
             1. kill the cockpit service.

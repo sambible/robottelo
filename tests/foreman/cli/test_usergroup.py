@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: UsersRoles
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import random
 
 import pytest
@@ -27,8 +23,7 @@ from robottelo.utils.datafactory import valid_usernames_list
 @pytest.fixture
 def function_user_group(target_sat):
     """Create new usergroup per each test"""
-    user_group = target_sat.cli_factory.usergroup()
-    return user_group
+    return target_sat.cli_factory.usergroup()
 
 
 @pytest.mark.tier1
@@ -118,8 +113,6 @@ def test_positive_add_and_remove_elements(module_target_sat):
 
     :expectedresults: Elements are added to user group and then removed
                       successfully.
-
-    :CaseLevel: Integration
     """
     role = module_target_sat.cli_factory.make_role()
     user_group = module_target_sat.cli_factory.usergroup()
@@ -165,8 +158,6 @@ def test_positive_remove_user_assigned_to_usergroup(module_target_sat):
 
     :customerscenario: true
 
-    :CaseLevel: Integration
-
     :BZ: 1667704
     """
     user = module_target_sat.cli_factory.user()
@@ -189,8 +180,6 @@ def test_positive_automate_bz1426957(ldap_auth_source, function_user_group, targ
     :expectedresults: Roles from usergroup is applied on AD user successfully.
 
     :customerscenario: true
-
-    :CaseLevel: Integration
 
     :BZ: 1426957, 1667704
     """
@@ -230,8 +219,6 @@ def test_negative_automate_bz1437578(ldap_auth_source, function_user_group, modu
 
     :expectedresults: Error message as Domain Users is a special group in AD.
 
-    :CaseLevel: Integration
-
     :BZ: 1437578
     """
     with pytest.raises(CLIReturnCodeError):
@@ -243,9 +230,9 @@ def test_negative_automate_bz1437578(ldap_auth_source, function_user_group, modu
             }
         )
     assert (
-        'Could not create external user group: '
+        result == 'Could not create external user group: '
         'Name is not found in the authentication source'
         'Name Domain Users is a special group in AD.'
         ' Unfortunately, we cannot obtain membership information'
-        ' from a LDAP search and therefore sync it.' == result
+        ' from a LDAP search and therefore sync it.'
     )

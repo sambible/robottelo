@@ -3,18 +3,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: ComputeResources-RHEV
 
 :Team: Rocket
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from fauxfactory import gen_string
 import pytest
 from wait_for import wait_for
@@ -344,7 +340,6 @@ def test_negative_add_image_rhev_with_invalid_name(rhev, module_os, module_targe
            name parameter, compute-resource image create.
 
     :expectedresults: The image should not be added to the CR
-
     """
     if rhev.image_uuid is None:
         pytest.skip('Missing configuration for rhev.image_uuid')
@@ -421,11 +416,11 @@ def test_positive_provision_rhev_with_host_group(
 
     :CaseAutomation: Automated
     """
-    cli = module_provisioning_sat.sat.cli
+    sat = module_provisioning_sat.sat
     cr_name = gen_string('alpha')
     org_name = module_sca_manifest_org.name
     loc_name = module_location.name
-    rhv_cr = cli.ComputeResource.create(
+    rhv_cr = sat.cli.ComputeResource.create(
         {
             'name': cr_name,
             'provider': 'Ovirt',
@@ -441,7 +436,7 @@ def test_positive_provision_rhev_with_host_group(
     assert rhv_cr['name'] == cr_name
     domain_name = module_provisioning_sat.domain.name
     subnet_name = module_provisioning_sat.subnet.name
-    hostgroup = cli.HostGroup.create(
+    hostgroup = sat.cli.HostGroup.create(
         {
             'name': gen_string('alpha'),
             'organization': org_name,
@@ -454,13 +449,13 @@ def test_positive_provision_rhev_with_host_group(
             'kickstart-repository-id': module_provisioning_rhel_content.ksrepo.id,
             'lifecycle-environment-id': module_sca_manifest_org.library.id,
             'operatingsystem': module_provisioning_rhel_content.os.title,
-            'pxe-loader': "PXELinux BIOS",
+            'pxe-loader': 'PXELinux BIOS',
             'partition-table': default_partitiontable.name,
             'compute-resource-id': rhv_cr.get('id'),
         }
     )
     host_name = gen_string('alpha').lower()
-    host = cli.Host.create(
+    host = sat.cli.Host.create(
         {
             'name': f'{host_name}',
             'organization': org_name,
@@ -473,7 +468,7 @@ def test_positive_provision_rhev_with_host_group(
             'mac': None,
             'compute-attributes': f"cluster={rhev.cluster_id},"
             "cores=1,"
-            "memory=4294967296,"  # 4 GiB
+            "memory=6442450944,"  # 6 GiB
             "start=1",
             'interface': (
                 f"compute_name=nic1, compute_network="
@@ -484,12 +479,12 @@ def test_positive_provision_rhev_with_host_group(
         }
     )
     # cleanup
-    request.addfinalizer(lambda: cli.Host.delete({'id': host['id']}))
+    request.addfinalizer(lambda: sat.provisioning_cleanup(host['name'], interface='CLI'))
 
     # checks
     hostname = f'{host_name}.{domain_name}'
     assert hostname == host['name']
-    host_info = cli.Host.info({'name': hostname})
+    host_info = sat.cli.Host.info({'name': hostname})
     # Check on RHV, if VM exists
     assert rhev.rhv_api.does_vm_exist(hostname)
     # Get the information of created VM
@@ -507,12 +502,12 @@ def test_positive_provision_rhev_with_host_group(
     # the result of the installation. Wait until Satellite reports that the host is installed.
     exp_st = 'Pending installation'
     wait_for(
-        lambda: cli.Host.info({'id': host['id']})['status']['build-status'] != exp_st,
+        lambda: sat.cli.Host.info({'id': host['id']})['status']['build-status'] != exp_st,
         # timeout=200,  # no need to wait long, the host was already pingable
         timeout=4000,  # wait long because the ping check has not been done, TODO
         delay=10,
     )
-    host = cli.Host.info({'id': host['id']})
+    host = sat.cli.Host.info({'id': host['id']})
     assert host['status']['build-status'] == 'Installed'
 
 
@@ -538,8 +533,6 @@ def test_positive_provision_rhev_without_host_group(rhev):
     :expectedresults: The host should be provisioned successfully
 
     :CaseAutomation: NotAutomated
-
-    :CaseLevel: Integration
     """
 
 
@@ -585,11 +578,11 @@ def test_positive_provision_rhev_image_based_and_disassociate(
 
     :CaseAutomation: Automated
     """
-    cli = module_provisioning_sat.sat.cli
+    sat = module_provisioning_sat.sat
     org_name = module_org.name
     loc_name = module_location.name
     name = gen_string('alpha')
-    rhv_cr = cli.ComputeResource.create(
+    rhv_cr = sat.cli.ComputeResource.create(
         {
             'name': name,
             'provider': 'Ovirt',
@@ -606,7 +599,7 @@ def test_positive_provision_rhev_image_based_and_disassociate(
     host_name = gen_string('alpha').lower()
     # use some RHEL (usually latest)
     os = module_provisioning_rhel_content.os
-    image = cli.ComputeResource.image_create(
+    image = sat.cli.ComputeResource.image_create(
         {
             'compute-resource': rhv_cr['name'],
             'name': f'img {gen_string(str_type="alpha")}',
@@ -624,7 +617,7 @@ def test_positive_provision_rhev_image_based_and_disassociate(
     host = None  # to avoid UnboundLocalError in finally block
     rhv_vm = None
     try:
-        host = cli.Host.create(
+        host = sat.cli.Host.create(
             {
                 'name': f'{host_name}',
                 'organization': org_name,
@@ -639,7 +632,7 @@ def test_positive_provision_rhev_image_based_and_disassociate(
                 'mac': None,
                 'compute-attributes': f"cluster={rhev.cluster_id},"
                 "cores=1,"
-                "memory=4294967296,"  # 4 GiB
+                "memory=6442450944,"  # 6 GiB
                 "start=1",
                 'interface': (
                     f"compute_name=nic1, compute_network="
@@ -654,7 +647,7 @@ def test_positive_provision_rhev_image_based_and_disassociate(
         )
         hostname = f'{host_name}.{domain_name}'
         assert hostname == host['name']
-        host_info = cli.Host.info({'name': hostname})
+        host_info = sat.cli.Host.info({'name': hostname})
         # Check on RHV, if VM exists
         assert rhev.rhv_api.does_vm_exist(hostname)
         # Get the information of created VM
@@ -669,14 +662,14 @@ def test_positive_provision_rhev_image_based_and_disassociate(
         # that's enough.
 
         # Disassociate the host from the CR, check it's disassociated
-        cli.Host.disassociate({'name': hostname})
-        host_info = cli.Host.info({'name': hostname})
+        sat.cli.Host.disassociate({'name': hostname})
+        host_info = sat.cli.Host.info({'name': hostname})
         assert 'compute-resource' not in host_info
 
     finally:
         # Now, let's just remove the host
         if host is not None:
-            cli.Host.delete({'id': host['id']})
+            sat.provisioning_cleanup(host['name'], interface='CLI')
         # Delete the VM since the disassociated VM won't get deleted
         if rhv_vm is not None:
             rhv_vm.delete()

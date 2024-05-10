@@ -18,7 +18,6 @@ from robottelo.constants import (
 from robottelo.hosts import IPAHost, SSOHost
 from robottelo.utils.datafactory import gen_string
 from robottelo.utils.installer import InstallerCommand
-from robottelo.utils.issue_handlers import is_open
 
 LOGGEDOUT = 'Logged out.'
 
@@ -271,52 +270,56 @@ def auth_data(request, ad_data, ipa_data):
         ad_data['attr_login'] = LDAP_ATTR['login_ad']
         ad_data['auth_type'] = auth_type
         return ad_data
-    elif auth_type == 'ipa':
+    if auth_type == 'ipa':
         ipa_data['server_type'] = LDAP_SERVER_TYPE['UI']['ipa']
         ipa_data['attr_login'] = LDAP_ATTR['login']
         ipa_data['auth_type'] = auth_type
         return ipa_data
+    return None
 
 
 @pytest.fixture(scope='module')
 def enroll_configure_rhsso_external_auth(module_target_sat):
     """Enroll the Satellite6 Server to an RHSSO Server."""
-    module_target_sat.execute(
-        'yum -y --disableplugin=foreman-protector install '
-        'mod_auth_openidc keycloak-httpd-client-install'
+    module_target_sat.register_to_cdn()
+    # keycloak-httpd-client-install needs lxml but it's not an rpm dependency + is not documented
+    assert (
+        module_target_sat.execute(
+            'yum -y --disableplugin=foreman-protector install '
+            'mod_auth_openidc keycloak-httpd-client-install python3-lxml '
+        ).status
+        == 0
     )
     # if target directory not given it is installing in /usr/local/lib64
-    module_target_sat.execute('python3 -m pip install lxml -t /usr/lib64/python3.6/site-packages')
-    module_target_sat.execute(
-        f'openssl s_client -connect {settings.rhsso.host_name} -showcerts </dev/null 2>/dev/null| '
-        f'sed "/BEGIN CERTIFICATE/,/END CERTIFICATE/!d" > {CERT_PATH}/rh-sso.crt'
+    assert (
+        module_target_sat.execute(
+            f'openssl s_client -connect {settings.rhsso.host_name}:443 -showcerts </dev/null 2>/dev/null| '
+            f'sed "/BEGIN CERTIFICATE/,/END CERTIFICATE/!d" > {CERT_PATH}/rh-sso.crt'
+        ).status
+        == 0
     )
-    module_target_sat.execute(
-        f'sshpass -p "{settings.rhsso.rhsso_password}" scp -o "StrictHostKeyChecking no" '
-        f'root@{settings.rhsso.host_name}:/root/ca_certs/*.crt {CERT_PATH}'
-    )
-    module_target_sat.execute('update-ca-trust')
-    module_target_sat.execute(
-        f'echo {settings.rhsso.rhsso_password} | keycloak-httpd-client-install \
+    assert (
+        module_target_sat.execute(
+            f'echo {settings.rhsso.rhsso_password} | keycloak-httpd-client-install \
                 --app-name foreman-openidc \
                 --keycloak-server-url {settings.rhsso.host_url} \
                 --keycloak-admin-username "admin" \
                 --keycloak-realm "{settings.rhsso.realm}" \
                 --keycloak-admin-realm master \
                 --keycloak-auth-role root-admin -t openidc -l /users/extlogin --force'
+        ).status
+        == 0
     )
-    if is_open('BZ:2113905'):
+    assert (
         module_target_sat.execute(
-            r"sed -i -e '$aapache::default_mods:\n  - authn_core' "
-            "/etc/foreman-installer/custom-hiera.yaml"
-        )
-    module_target_sat.execute(
-        f'satellite-installer --foreman-keycloak true '
-        f"--foreman-keycloak-app-name 'foreman-openidc' "
-        f"--foreman-keycloak-realm '{settings.rhsso.realm}' ",
-        timeout=1000000,
+            f'satellite-installer --foreman-keycloak true '
+            f"--foreman-keycloak-app-name 'foreman-openidc' "
+            f"--foreman-keycloak-realm '{settings.rhsso.realm}' ",
+            timeout=1000000,
+        ).status
+        == 0
     )
-    module_target_sat.execute('systemctl restart httpd')
+    assert module_target_sat.execute('systemctl restart httpd').status == 0
 
 
 @pytest.fixture(scope='module')
@@ -334,7 +337,6 @@ def enable_external_auth_rhsso(
     default_sso_host.set_the_redirect_uri()
 
 
-@pytest.mark.external_auth
 @pytest.fixture(scope='module')
 def module_enroll_idm_and_configure_external_auth(module_target_sat):
     ipa_host = IPAHost(module_target_sat)
@@ -343,7 +345,6 @@ def module_enroll_idm_and_configure_external_auth(module_target_sat):
     ipa_host.disenroll_idm()
 
 
-@pytest.mark.external_auth
 @pytest.fixture
 def func_enroll_idm_and_configure_external_auth(target_sat):
     ipa_host = IPAHost(target_sat)
@@ -410,19 +411,16 @@ def rhsso_setting_setup_with_timeout(module_target_sat, rhsso_setting_setup):
     setting_entity.update({'value'})
 
 
-@pytest.mark.external_auth
 @pytest.fixture(scope='module')
 def module_enroll_ad_and_configure_external_auth(ad_data, module_target_sat):
     module_target_sat.enroll_ad_and_configure_external_auth(ad_data)
 
 
-@pytest.mark.external_auth
 @pytest.fixture
 def func_enroll_ad_and_configure_external_auth(ad_data, target_sat):
     target_sat.enroll_ad_and_configure_external_auth(ad_data)
 
 
-@pytest.mark.external_auth
 @pytest.fixture
 def configure_hammer_no_creds(parametrized_enrolled_sat):
     """Configures hammer to use sessions and negotiate auth."""
@@ -433,7 +431,6 @@ def configure_hammer_no_creds(parametrized_enrolled_sat):
     parametrized_enrolled_sat.execute(f'mv -f {HAMMER_CONFIG}.backup {HAMMER_CONFIG}')
 
 
-@pytest.mark.external_auth
 @pytest.fixture
 def configure_hammer_negotiate(parametrized_enrolled_sat, configure_hammer_no_creds):
     """Configures hammer to use sessions and negotiate auth."""
@@ -448,7 +445,6 @@ def configure_hammer_negotiate(parametrized_enrolled_sat, configure_hammer_no_cr
     parametrized_enrolled_sat.execute(f'mv -f {HAMMER_CONFIG}.backup {HAMMER_CONFIG}')
 
 
-@pytest.mark.external_auth
 @pytest.fixture
 def configure_hammer_no_negotiate(parametrized_enrolled_sat):
     """Configures hammer not to use automatic negotiation."""
@@ -458,15 +454,14 @@ def configure_hammer_no_negotiate(parametrized_enrolled_sat):
     parametrized_enrolled_sat.execute(f'mv -f {HAMMER_CONFIG}.backup {HAMMER_CONFIG}')
 
 
-@pytest.mark.external_auth
 @pytest.fixture
 def hammer_logout(parametrized_enrolled_sat):
     """Logout in Hammer."""
     result = parametrized_enrolled_sat.cli.Auth.logout()
-    assert result[0]['message'] == LOGGEDOUT
+    assert result.split("\n")[1] == LOGGEDOUT
     yield
     result = parametrized_enrolled_sat.cli.Auth.logout()
-    assert result[0]['message'] == LOGGEDOUT
+    assert result.split("\n")[1] == LOGGEDOUT
 
 
 @pytest.fixture

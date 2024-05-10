@@ -3,18 +3,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: Reporting
 
 :team: Phoenix-subscriptions
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from broker import Broker
 from fauxfactory import gen_alpha
 import pytest
@@ -120,7 +116,6 @@ def test_positive_report_help(module_target_sat):
     :expectedresults: report-templates command is included in help,
                       report-templates command details are displayed,
                       report-templates create command details are displayed
-
     """
     command_output = module_target_sat.cli.Base().execute('--help')
     assert 'report-template' in command_output
@@ -298,7 +293,6 @@ def test_positive_report_add_userinput(module_target_sat):
         1. hammer template-input create ...
 
     :expectedresults: User input is assigned to the report template
-
     """
     name = gen_alpha()
     report_template = module_target_sat.cli_factory.report_template({'name': name})
@@ -328,9 +322,7 @@ def test_positive_dump_report(module_target_sat):
     """
     name = gen_alpha()
     content = gen_alpha()
-    report_template = module_target_sat.cli_factory.report_template(
-        {'name': name, 'content': content}
-    )
+    report_template = module_target_sat.cli_factory.report_template({'name': name, 'file': content})
     result = module_target_sat.cli.ReportTemplate.dump({'id': report_template['id']})
     assert content in result
 
@@ -409,9 +401,7 @@ def test_positive_generate_report_sanitized(module_target_sat):
         }
     )
 
-    report_template = module_target_sat.cli_factory.report_template(
-        {'content': REPORT_TEMPLATE_FILE}
-    )
+    report_template = module_target_sat.cli_factory.report_template({'file': REPORT_TEMPLATE_FILE})
 
     result = module_target_sat.cli.ReportTemplate.generate({'name': report_template['name']})
     assert 'Name,Operating System' in result  # verify header of custom template
@@ -441,7 +431,6 @@ def test_positive_applied_errata():
 
     :expectedresults: 1. A report is generated with all applied errata listed
                       2,3. A report is generated asynchronously
-
     """
 
 
@@ -718,7 +707,7 @@ def test_positive_generate_ansible_template(module_target_sat):
     :CaseImportance: Medium
     """
     settings = module_target_sat.cli.Settings.list({'search': 'name=ansible_inventory_template'})
-    assert 1 == len(settings)
+    assert len(settings) == 1
     template_name = settings[0]['value']
 
     report_list = module_target_sat.cli.ReportTemplate.list()
@@ -757,9 +746,10 @@ def test_positive_generate_ansible_template(module_target_sat):
     assert host['name'] in [item.split(',')[1] for item in report_data.split('\n') if len(item) > 0]
 
 
+@pytest.mark.no_containers
 @pytest.mark.tier3
 def test_positive_generate_entitlements_report_multiple_formats(
-    module_entitlement_manifest_org, local_ak, local_subscription, rhel7_contenthost, target_sat
+    module_sca_manifest_org, local_ak, local_subscription, rhel7_contenthost, target_sat
 ):
     """Generate an report using the Subscription - Entitlement Report template
     in html, yaml, and csv format.
@@ -783,11 +773,11 @@ def test_positive_generate_entitlements_report_multiple_formats(
     """
     client = rhel7_contenthost
     client.install_katello_ca(target_sat)
-    client.register_contenthost(module_entitlement_manifest_org.label, local_ak['name'])
+    client.register_contenthost(module_sca_manifest_org.label, local_ak['name'])
     assert client.subscribed
     result_html = target_sat.cli.ReportTemplate.generate(
         {
-            'organization': module_entitlement_manifest_org.name,
+            'organization': module_sca_manifest_org.name,
             'name': 'Subscription - Entitlement Report',
             'report-format': 'html',
             'inputs': 'Days from Now=no limit',
@@ -797,7 +787,7 @@ def test_positive_generate_entitlements_report_multiple_formats(
     assert local_subscription['name'] in result_html
     result_yaml = target_sat.cli.ReportTemplate.generate(
         {
-            'organization': module_entitlement_manifest_org.name,
+            'organization': module_sca_manifest_org.name,
             'name': 'Subscription - Entitlement Report',
             'report-format': 'yaml',
             'inputs': 'Days from Now=no limit',
@@ -810,7 +800,7 @@ def test_positive_generate_entitlements_report_multiple_formats(
             assert local_subscription['name'] in entry
     result_csv = target_sat.cli.ReportTemplate.generate(
         {
-            'organization': module_entitlement_manifest_org.name,
+            'organization': module_sca_manifest_org.name,
             'name': 'Subscription - Entitlement Report',
             'report-format': 'csv',
             'inputs': 'Days from Now=no limit',
@@ -866,6 +856,44 @@ def test_positive_schedule_entitlements_report(
 
 
 @pytest.mark.tier3
+def test_entitlements_report_no_inputs_field(
+    module_entitlement_manifest_org,
+    module_location,
+    local_ak,
+    local_subscription,
+    rhel7_contenthost,
+    target_sat,
+):
+    """Generate an report using the Subscription - Entitlement Report template
+    without passing in the 'Days from Now' argument in the inputs field, to test the
+    default setting
+
+    :id: 5c4e52b9-314c-470d-9946-3d6e05c85b7e
+
+    :steps:
+        1. hammer report-template generate --organization '' --id '' --report-format ''
+
+    :expectedresults: report is generated, and the Days From Now field isn't required
+
+    :BZ: 1943306
+
+    :customerscenario: true
+    """
+    client = rhel7_contenthost
+    client.register(module_entitlement_manifest_org, module_location, local_ak['name'], target_sat)
+    assert client.subscribed
+    result = target_sat.cli.ReportTemplate.generate(
+        {
+            'organization': module_entitlement_manifest_org.name,
+            'name': 'Subscription - Entitlement Report',
+            'report-format': 'csv',
+        }
+    )
+    # Only care that the Days from Now field isn't required, do not care about content
+    assert 'Subscription Total Quantity' in result
+
+
+@pytest.mark.tier3
 def test_positive_generate_hostpkgcompare(
     module_entitlement_manifest_org, local_ak, local_content_view, local_environment, target_sat
 ):
@@ -897,7 +925,8 @@ def test_positive_generate_hostpkgcompare(
             'content-view-id': local_content_view['id'],
             'lifecycle-environment-id': local_environment['id'],
             'activationkey-id': local_ak['id'],
-        }
+        },
+        force=True,
     )
     target_sat.cli_factory.setup_org_for_a_custom_repo(
         {
@@ -996,7 +1025,7 @@ def test_negative_generate_hostpkgcompare_nonexistent_host(module_target_sat):
                 'inputs': 'Host 1 = nonexistent1, ' 'Host 2 = nonexistent2',
             }
         )
-    assert "At least one of the hosts couldn't be found" in cm.exception.stderr
+    assert "At least one of the hosts couldn't be found" in cm.value.stderr
 
 
 @pytest.mark.rhel_ver_list([7, 8, 9])

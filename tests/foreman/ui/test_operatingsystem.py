@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: Provisioning
 
 :Team: Rocket
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import pytest
 
 from robottelo.constants import HASH_TYPE
@@ -30,8 +26,6 @@ def test_positive_end_to_end(session, module_org, module_location, target_sat):
     :id: 280afff3-ebf4-4a54-af11-200327b8957b
 
     :expectedresults: All scenarios flows work properly
-
-    :CaseLevel: Integration
 
     :CaseImportance: Critical
     """
@@ -154,8 +148,6 @@ def test_positive_verify_os_name(session, target_sat):
     :expectedresults: The full operating system name is displayed in the title column.
 
     :BZ: 1778503
-
-    :CaseLevel: Component
 
     :CaseImportance: Low
     """

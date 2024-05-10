@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: Hosts-Content
 
 :team: Phoenix-subscriptions
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import pytest
 
 from robottelo.config import settings
@@ -32,8 +28,6 @@ def test_content_access_after_stopped_foreman(target_sat, rhel7_contenthost):
     :id: 71ae6a56-30bb-11eb-8489-d46d6dd3b5b2
 
     :expectedresults: Package should get installed even after foreman service is stopped
-
-    :CaseLevel: System
 
     :CaseImportance: Medium
 

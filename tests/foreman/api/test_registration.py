@@ -2,8 +2,6 @@
 
 :Requirement: Registration
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Registration
 
 :CaseAutomation: Automated
@@ -12,18 +10,19 @@
 
 :Team: Rocket
 
-:TestType: Functional
-
-:Upstream: No
 """
+
 import uuid
 
-from fauxfactory import gen_ipaddr, gen_mac
+from fauxfactory import gen_ipaddr, gen_mac, gen_string
 import pytest
 from requests import HTTPError
 
 from robottelo import constants
-from robottelo.config import settings
+from robottelo.config import (
+    settings,
+    user_nailgun_config,
+)
 
 pytestmark = pytest.mark.tier1
 
@@ -31,7 +30,7 @@ pytestmark = pytest.mark.tier1
 @pytest.mark.e2e
 @pytest.mark.no_containers
 def test_host_registration_end_to_end(
-    module_entitlement_manifest_org,
+    module_sca_manifest_org,
     module_location,
     module_activation_key,
     module_target_sat,
@@ -51,7 +50,7 @@ def test_host_registration_end_to_end(
 
     :customerscenario: true
     """
-    org = module_entitlement_manifest_org
+    org = module_sca_manifest_org
     command = module_target_sat.api.RegistrationCommand(
         organization=org,
         activation_keys=[module_activation_key.name],
@@ -64,7 +63,7 @@ def test_host_registration_end_to_end(
 
     # Verify server.hostname and server.port from subscription-manager config
     assert module_target_sat.hostname == rhel_contenthost.subscription_config['server']['hostname']
-    assert constants.CLIENT_PORT == rhel_contenthost.subscription_config['server']['port']
+    assert rhel_contenthost.subscription_config['server']['port'] == constants.CLIENT_PORT
 
     # Update module_capsule_configured to include module_org/module_location
     nc = module_capsule_configured.nailgun_smart_proxy
@@ -88,7 +87,7 @@ def test_host_registration_end_to_end(
         module_capsule_configured.hostname
         == rhel_contenthost.subscription_config['server']['hostname']
     )
-    assert constants.CLIENT_PORT == rhel_contenthost.subscription_config['server']['port']
+    assert rhel_contenthost.subscription_config['server']['port'] == constants.CLIENT_PORT
 
 
 @pytest.mark.tier3
@@ -110,8 +109,6 @@ def test_positive_allow_reregistration_when_dmi_uuid_changed(
     :customerscenario: true
 
     :BZ: 1747177,2229112
-
-    :CaseLevel: Integration
     """
     uuid_1 = str(uuid.uuid1())
     uuid_2 = str(uuid.uuid4())
@@ -148,8 +145,6 @@ def test_positive_update_packages_registration(
     :id: 3d0a3252-ab81-4acf-bca6-253b746f26bb
 
     :expectedresults: Package update is successful on host post registration.
-
-    :CaseLevel: Component
     """
     org = module_sca_manifest_org
     command = module_target_sat.api.RegistrationCommand(
@@ -271,3 +266,101 @@ def test_negative_capsule_without_registration_enabled(
         "Proxy lacks one of the following features: 'Registration', 'Templates'"
         in context.value.response.text
     )
+
+
+@pytest.mark.rhel_ver_match('[^6]')
+def test_positive_host_registration_with_non_admin_user_with_setup_false(
+    module_org,
+    module_location,
+    module_activation_key,
+    module_target_sat,
+    rhel_contenthost,
+):
+    """Verify host registration with non admin user with setup false
+
+    :id: 02bdda6a-010d-4098-a7e0-e4b5e8416ce3
+
+    :steps:
+        1. Sync the content repositories, add and publish it in CV
+        2. Create a non-admin user and assign "Register Hosts" role to it.
+        3. Create an activation key and assign CV and LCE to it.
+        4. Create new user and generate curl command to register host
+
+    :expectedresults: Host registered successfully with all setup options set to 'NO' with non-admin user
+
+    :BZ: 2211484
+
+    :customerscenario: true
+    """
+    register_host_role = module_target_sat.api.Role().search(
+        query={'search': 'name="Register hosts"'}
+    )
+    login = gen_string('alphanumeric')
+    password = gen_string('alphanumeric')
+    module_target_sat.api.User(
+        role=register_host_role,
+        admin=False,
+        login=login,
+        password=password,
+        organization=[module_org],
+        location=[module_location],
+    ).create()
+    user_cfg = user_nailgun_config(login, password)
+    command = module_target_sat.api.RegistrationCommand(
+        server_config=user_cfg,
+        organization=module_org,
+        activation_keys=[module_activation_key.name],
+        location=module_location,
+        setup_insights=False,
+        setup_remote_execution=False,
+        setup_remote_execution_pull=False,
+        update_packages=False,
+    ).create()
+    result = rhel_contenthost.execute(command)
+    assert result.status == 0, f'Failed to register host: {result.stderr}'
+
+    # verify package install for insights-client didn't run when Setup Insights is false
+    assert 'dnf -y install insights-client' not in result.stdout
+    # verify  package install for foreman_ygg_worker didn't run when REX pull mode is false
+    assert 'dnf -y install foreman_ygg_worker' not in result.stdout
+    # verify packages aren't getting updated when Update packages is false
+    assert '# Updating packages' not in result.stdout
+    # verify foreman-proxy ssh pubkey isn't present when Setup REX is false
+    assert rhel_contenthost.execute('cat ~/.ssh/authorized_keys | grep foreman-proxy').status == 1
+
+
+@pytest.mark.rhel_ver_match('[^6]')
+def test_negative_verify_bash_exit_status_failing_host_registration(
+    module_sca_manifest_org,
+    module_location,
+    module_target_sat,
+    rhel_contenthost,
+):
+    """Verify status code, when curl command registration fail intentionally
+
+    :id: 4789e8da-6391-4ea4-aa0d-73c93220ce44
+
+    :steps:
+        1. Generate a curl command and make the registration fail intentionally.
+        2. Check the exit code for the command.
+
+    :expectedresults: Exit code returns 1 if registration fails.
+
+    :BZ: 2155444
+
+    :customerscenario: true
+
+    :parametrized: yes
+    """
+    ak = module_target_sat.api.ActivationKey(name=gen_string('alpha')).create()
+    # Try registration command generated with AK not in same as selected organization
+    command = module_target_sat.api.RegistrationCommand(
+        organization=module_sca_manifest_org,
+        activation_keys=[ak.name],
+        location=module_location,
+    ).create()
+    result = rhel_contenthost.execute(command)
+
+    # verify status code when registrationCommand fails to register on host
+    assert result.status == 1
+    assert 'Couldn\'t find activation key' in result.stderr

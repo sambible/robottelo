@@ -39,6 +39,7 @@ Options::
     prefix                        The string all imported templates should begin with.
     repo                          Override the default repo from settings.
 """
+
 from robottelo.cli.base import Base
 
 
@@ -50,15 +51,11 @@ class TemplateSync(Base):
         """Export Satellite Templates to Git/Local Directory."""
         cls.command_base = 'export-templates'
 
-        result = cls.execute(cls._construct_command(options))
-
-        return result
+        return cls.execute(cls._construct_command(options))
 
     @classmethod
     def imports(cls, options=None):
         """Import Satellite Templates to Git/Local Directory."""
         cls.command_base = 'import-templates'
 
-        result = cls.execute(cls._construct_command(options))
-
-        return result
+        return cls.execute(cls._construct_command(options))

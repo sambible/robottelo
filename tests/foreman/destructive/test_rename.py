@@ -4,19 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: System
-
-:CaseComponent: satellite-change-hostname
+:CaseComponent: Installation
 
 :Team: Platform
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
-
 """
+
 from fauxfactory import gen_string
 import pytest
 

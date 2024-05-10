@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: Authentication
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: Critical
 
-:Upstream: No
 """
+
 from time import sleep
 
 from fauxfactory import gen_string
@@ -34,9 +30,7 @@ def configure_sessions(satellite, enable=True, add_default_creds=False):
     """Enables the `use_sessions` option in hammer config"""
     result = satellite.execute(
         '''sed -i -e '/username/d;/password/d;/use_sessions/d' {0};\
-        echo '  :use_sessions: {1}' >> {0}'''.format(
-            HAMMER_CONFIG, 'true' if enable else 'false'
-        )
+        echo '  :use_sessions: {1}' >> {0}'''.format(HAMMER_CONFIG, 'true' if enable else 'false')
     )
     if result.status == 0 and add_default_creds:
         result = satellite.execute(
@@ -70,7 +64,7 @@ def test_positive_create_session(admin_user, target_sat):
 
     :id: fcee7f5f-1040-41a9-bf17-6d0c24a93e22
 
-    :Steps:
+    :steps:
 
         1. Set use_sessions, set short expiration time
         2. Authenticate, assert credentials are not demanded
@@ -109,7 +103,7 @@ def test_positive_disable_session(admin_user, target_sat):
 
     :id: 38ee0d85-c2fe-4cac-a992-c5dbcec11031
 
-    :Steps:
+    :steps:
 
         1. Set use_sessions
         2. Authenticate, assert credentials are not demanded
@@ -117,7 +111,6 @@ def test_positive_disable_session(admin_user, target_sat):
         3. Disable use_sessions
 
     :expectedresults: The session is terminated
-
     """
     result = configure_sessions(target_sat)
     assert result == 0, 'Failed to configure hammer sessions'
@@ -141,7 +134,7 @@ def test_positive_log_out_from_session(admin_user, target_sat):
 
     :id: 0ba05f2d-7b83-4b0c-a04c-80e62b7c4cf2
 
-    :Steps:
+    :steps:
 
         1. Set use_sessions
         2. Authenticate, assert credentials are not demanded
@@ -149,7 +142,6 @@ def test_positive_log_out_from_session(admin_user, target_sat):
         3. Run `hammer auth logout`
 
     :expectedresults: The session is terminated
-
     """
     result = configure_sessions(target_sat)
     assert result == 0, 'Failed to configure hammer sessions'
@@ -171,7 +163,7 @@ def test_positive_change_session(admin_user, non_admin_user, target_sat):
 
     :id: b6ea6f3c-fcbd-4e7b-97bd-f3e0e6b9da8f
 
-    :Steps:
+    :steps:
 
         1. Set use_sessions
         2. Authenticate, assert credentials are not demanded
@@ -181,7 +173,6 @@ def test_positive_change_session(admin_user, non_admin_user, target_sat):
     :CaseImportance: High
 
     :expectedresults: The session is altered
-
     """
     result = configure_sessions(target_sat)
     assert result == 0, 'Failed to configure hammer sessions'
@@ -202,17 +193,17 @@ def test_positive_session_survives_unauthenticated_call(admin_user, target_sat):
 
     :id: 8bc304a0-70ea-489c-9c3f-ea8343c5284c
 
-    :Steps:
+    :steps:
 
         1. Set use_sessions
-        2. Authenticate, assert credentials are not demanded
-           on next command run
-        3. Run `hammer ping`
+        2. Authenticate
+        3. Run an authenticated call, assert credentials are not demanded
+        4. Run `hammer ping`, an unauthenticated call
+        5. Run an authenticated call, assert credentials are not demanded
 
     :CaseImportance: Medium
 
     :expectedresults: The session is unchanged
-
     """
     result = configure_sessions(target_sat)
     assert result == 0, 'Failed to configure hammer sessions'
@@ -236,15 +227,17 @@ def test_positive_session_survives_failed_login(admin_user, non_admin_user, targ
 
     :BZ: 1465552
 
-    :Steps:
+    :steps:
 
         1. Set use_sessions
-        2. Authenticate, assert credentials are not demanded
-           on next command run
-        3. Run login with invalid credentials
+        2. Authenticate
+        3. Run an authenticated command, assert credentials are not demanded
+        4. Run login with invalid credentials
+        5. Run an authenticated command, assert credentials are not demanded
 
     :expectedresults: The session is unchanged
 
+    :CaseImportance: High
     """
     result = configure_sessions(target_sat)
     assert result == 0, 'Failed to configure hammer sessions'
@@ -275,7 +268,7 @@ def test_positive_session_preceeds_saved_credentials(admin_user, target_sat):
 
     :CaseImportance: High
 
-    :Steps:
+    :steps:
 
         1. Set use_sessions, set username and password,
            set short expiration time
@@ -285,7 +278,6 @@ def test_positive_session_preceeds_saved_credentials(admin_user, target_sat):
 
     :expectedresults: Session expires after specified time
         and saved credentials are not applied
-
     """
     try:
         idle_timeout = target_sat.cli.Settings.list({'search': 'name=idle_timeout'})[0]['value']
@@ -331,7 +323,6 @@ def test_negative_no_permissions(admin_user, non_admin_user, target_sat):
     :expectedresults: Command is not executed
 
     :CaseImportance: High
-
     """
     result = configure_sessions(target_sat)
     assert result == 0, 'Failed to configure hammer sessions'

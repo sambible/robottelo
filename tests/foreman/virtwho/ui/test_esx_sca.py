@@ -4,16 +4,12 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Virt-whoConfigurePlugin
 
 :team: Phoenix-subscriptions
 
-:TestType: Functional
-
-:Upstream: No
 """
+
 from datetime import datetime
 
 from airgun.session import Session
@@ -57,8 +53,6 @@ class TestVirtwhoConfigforEsx:
             4. Virtual sku can be generated and attached
             5. Config can be deleted
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
         """
         assert org_session.virtwho_configure.search(form_data_ui['name'])[0]['Status'] == 'ok'
@@ -74,8 +68,6 @@ class TestVirtwhoConfigforEsx:
         :expectedresults:
             1. if debug is checked, VIRTWHO_DEBUG=1 in /etc/sysconfig/virt-who
             2. if debug is unchecked, VIRTWHO_DEBUG=0 in /etc/sysconfig/virt-who
-
-        :CaseLevel: Integration
 
         :CaseImportance: Medium
         """
@@ -105,8 +97,6 @@ class TestVirtwhoConfigforEsx:
         :expectedresults:
             VIRTWHO_INTERVAL can be changed in /etc/sysconfig/virt-who if the
             dropdown option is selected to Every 2/4/8/12/24 hours, Every 2/3 days.
-
-        :CaseLevel: Integration
 
         :CaseImportance: Medium
         """
@@ -144,8 +134,6 @@ class TestVirtwhoConfigforEsx:
             hypervisor_id can be changed in virt-who-config-{}.conf if the
             dropdown option is selected to uuid/hwuuid/hostname.
 
-        :CaseLevel: Integration
-
         :CaseImportance: Medium
         """
         name = form_data_ui['name']
@@ -181,7 +169,6 @@ class TestVirtwhoConfigforEsx:
             'Filter hosts' can be set.
             4. Create virtwho config if filtering is selected to Blacklist,
             'Exclude hosts' can be set.
-        :CaseLevel: Integration
 
         :CaseImportance: Medium
 
@@ -257,7 +244,12 @@ class TestVirtwhoConfigforEsx:
 
     @pytest.mark.tier2
     def test_positive_last_checkin_status(
-        self, module_sca_manifest_org, virtwho_config_ui, form_data_ui, org_session
+        self,
+        module_sca_manifest_org,
+        virtwho_config_ui,
+        form_data_ui,
+        org_session,
+        default_location,
     ):
         """Verify the Last Checkin status on Content Hosts Page.
 
@@ -266,8 +258,6 @@ class TestVirtwhoConfigforEsx:
         :expectedresults: The Last Checkin time on Content Hosts Page is client date time
 
         :BZ: 1652323
-
-        :CaseLevel: Integration
 
         :customerscenario: true
 
@@ -281,6 +271,7 @@ class TestVirtwhoConfigforEsx:
         )
         time_now = org_session.browser.get_client_datetime()
         assert org_session.virtwho_configure.search(name)[0]['Status'] == 'ok'
+        org_session.location.select(default_location.name)
         checkin_time = org_session.contenthost.search(hypervisor_name)[0]['Last Checkin']
         # 10 mins margin to check the Last Checkin time
         assert (
@@ -305,8 +296,6 @@ class TestVirtwhoConfigforEsx:
             1. the option "env=" should be removed from etc/virt-who.d/virt-who.conf
             2. /var/log/messages should not display warning message
 
-        :CaseLevel: Integration
-
         :CaseImportance: Medium
 
         :BZ: 1834897
@@ -324,9 +313,7 @@ class TestVirtwhoConfigforEsx:
         option = "env"
         config_id = get_configure_id(name)
         config_file = get_configure_file(config_id)
-        env_error = (
-            f"option {{\'{option}\'}} is not exist or not be enabled in {{\'{config_file}\'}}"
-        )
+        env_error = f"option {{'{option}'}} is not exist or not be enabled in {{'{config_file}'}}"
         with pytest.raises(Exception) as exc_info:  # noqa: PT011 - TODO determine better exception
             get_configure_option({option}, {config_file})
         assert str(exc_info.value) == env_error
@@ -343,8 +330,6 @@ class TestVirtwhoConfigforEsx:
 
         :expectedresults:
             'Virt-who Manager', 'Virt-who Reporter', 'Virt-who Viewer' existing
-
-        :CaseLevel: Integration
 
         :CaseImportance: Low
         """
@@ -385,8 +370,6 @@ class TestVirtwhoConfigforEsx:
             1. Verify the virt-who server can no longer connect to the
                Satellite.
 
-        :CaseLevel: Integration
-
         :CaseImportance: Low
         """
         name = gen_string('alpha')
@@ -416,8 +399,6 @@ class TestVirtwhoConfigforEsx:
             Virt-who Reporter Role granting minimal set of permissions for virt-who
             to upload the report, it can be used if you configure virt-who manually
             and want to use user that has locked down account.
-
-        :CaseLevel: Integration
 
         :CaseImportance: Low
         """
@@ -476,8 +457,6 @@ class TestVirtwhoConfigforEsx:
             Virt-who Viewer Role granting permissions to see all configurations
             including their configuration scripts, which means viewers could still
             deploy the virt-who instances for existing virt-who configurations.
-
-        :CaseLevel: Integration
 
         :CaseImportance: Low
         """
@@ -541,7 +520,6 @@ class TestVirtwhoConfigforEsx:
         :expectedresults:
             Virt-who Manager Role granting all permissions to manage virt-who configurations,
             user needs this role to create, delete or update configurations.
-        :CaseLevel: Integration
 
         :CaseImportance: Low
         """
@@ -605,8 +583,6 @@ class TestVirtwhoConfigforEsx:
 
         :expectedresults: Config can be created and deployed without any error
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
 
         :BZ: 1870816,1959136
@@ -648,3 +624,34 @@ class TestVirtwhoConfigforEsx:
             )
             org_session.virtwho_configure.delete(name)
             assert not org_session.virtwho_configure.search(name)
+
+    @pytest.mark.tier2
+    def test_positive_hypervisor_password_option(
+        self, module_sca_manifest_org, virtwho_config_ui, org_session, form_data_ui
+    ):
+        """Verify Hypervisor password.
+
+        :id: 8362955a-4daa-4332-9559-b526d9095a61
+
+        :expectedresults:
+            hypervisor_password has been set in virt-who-config-{}.conf
+            hypervisor_password has been encrypted in satellite WEB UI Edit page
+            hypervisor_password has been encrypted in satellite WEB UI Details page
+
+        :CaseImportance: Medium
+
+        :BZ: 2256927
+        """
+        name = form_data_ui['name']
+        config_id = get_configure_id(name)
+        config_command = get_configure_command(config_id, module_sca_manifest_org.name)
+        deploy_configure_by_command(
+            config_command, form_data_ui['hypervisor_type'], org=module_sca_manifest_org.label
+        )
+        config_file = get_configure_file(config_id)
+        assert get_configure_option('encrypted_password', config_file)
+        res = org_session.virtwho_configure.read_edit(name)
+        assert 'encrypted-' in res['hypervisor_content']['password']
+        org_session.virtwho_configure.edit(name, {'hypervisor_password': gen_string('alpha')})
+        results = org_session.virtwho_configure.read(name)
+        assert 'encrypted_password=$cr_password' in results['deploy']['script']

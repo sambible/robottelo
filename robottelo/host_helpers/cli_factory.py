@@ -3,6 +3,7 @@ This module is a more object oriented replacement for robottelo.cli.factory
 It is not meant to be used directly, but as part of a robottelo.hosts.Satellite instance
 example: my_satellite.cli_factory.make_org()
 """
+
 import datetime
 from functools import lru_cache, partial
 import inspect
@@ -33,7 +34,7 @@ from robottelo.host_helpers.repository_mixins import initiate_repo_helpers
 from robottelo.utils.manifest import clone
 
 
-def create_object(cli_object, options, values=None, credentials=None):
+def create_object(cli_object, options, values=None, credentials=None, timeout=None):
     """
     Creates <object> with dictionary of arguments.
 
@@ -52,16 +53,14 @@ def create_object(cli_object, options, values=None, credentials=None):
     if credentials:
         cli_object = cli_object.with_user(*credentials)
     try:
-        result = cli_object.create(options)
+        result = cli_object.create(options, timeout)
     except CLIReturnCodeError as err:
         # If the object is not created, raise exception, stop the show.
         raise CLIFactoryError(
-            'Failed to create {} with data:\n{}\n{}'.format(
-                cli_object.__name__, pprint.pformat(options, indent=2), err.msg
-            )
-        )
+            f'Failed to create {cli_object.__name__} with data:\n{pprint.pformat(options, indent=2)}\n{err.msg}'
+        ) from err
     # Sometimes we get a list with a dictionary and not a dictionary.
-    if type(result) is list and len(result) > 0:
+    if isinstance(result, list) and len(result) > 0:
         result = result[0]
     return Box(result)
 
@@ -140,7 +139,9 @@ ENTITY_FIELDS = {
     'sync_plan': {
         'description': gen_alpha,
         'enabled': 'true',
-        'interval': lambda: random.choice(list(constants.SYNC_INTERVAL.values())),
+        'interval': lambda: random.choice(
+            [i for i in constants.SYNC_INTERVAL.values() if i != 'custom cron']
+        ),
         'name': gen_alpha,
         'sync-date': lambda: datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
     },
@@ -153,7 +154,10 @@ ENTITY_FIELDS = {
     'host_collection': {
         'name': gen_alpha,
     },
-    'job_invocation': {},
+    'job_invocation': {'_redirect': 'job_invocation_with_credentials'},
+    'job_invocation_with_credentials': {
+        '_entity_cls': 'JobInvocation',
+    },
     'job_template': {
         'job-category': 'Miscellaneous',
         'provider-type': 'SSH',
@@ -273,15 +277,13 @@ class CLIFactory:
             # evaluate functions that provide default values
             fields = self._evaluate_functions(fields)
             return partial(create_object, entity_cls, fields)
-        else:
-            raise AttributeError(f'unknown factory method name: {name}')
+        raise AttributeError(f'unknown factory method name: {name}')
 
     def _evaluate_function(self, function):
         """Some functions may require an instance reference"""
         if 'self' in inspect.signature(function).parameters:
             return function(self)
-        else:
-            return function()
+        return function()
 
     def _evaluate_functions(self, iterable):
         """Run functions that are used to populate data in lists/dicts"""
@@ -293,6 +295,7 @@ class CLIFactory:
                 for key, item in iterable.items()
                 if not key.startswith('_')
             }
+        return None
 
     @lru_cache
     def _find_entity_class(self, entity_name):
@@ -300,6 +303,7 @@ class CLIFactory:
         for name, class_obj in self._satellite.cli.__dict__.items():
             if entity_name == name.lower():
                 return class_obj
+        return None
 
     def make_content_credential(self, options=None):
         """Creates a content credential.
@@ -394,8 +398,8 @@ class CLIFactory:
                 product = self._satellite.cli.Product.info(
                     {'name': options.get('name'), 'organization-id': options.get('organization-id')}
                 )
-            except CLIReturnCodeError:
-                raise err
+            except CLIReturnCodeError as nested_err:
+                raise nested_err from err
             if not product:
                 raise err
         return product
@@ -503,7 +507,7 @@ class CLIFactory:
                     args['url'] = url
                     return create_object(self._satellite.cli.Proxy, args, options)
             except CapsuleTunnelError as err:
-                raise CLIFactoryError(f'Failed to create ssh tunnel: {err}')
+                raise CLIFactoryError(f'Failed to create ssh tunnel: {err}') from None
         args['url'] = options['url']
         return create_object(self._satellite.cli.Proxy, args, options)
 
@@ -527,7 +531,7 @@ class CLIFactory:
         }
 
         # Write content to file or random text
-        if options is not None and 'content' in options.keys():
+        if options is not None and 'content' in options:
             content = options.pop('content')
         else:
             content = gen_alphanumeric()
@@ -569,7 +573,7 @@ class CLIFactory:
                 except CLIReturnCodeError as err:
                     raise CLIFactoryError(
                         f'Failed to add subscription to activation key\n{err.msg}'
-                    )
+                    ) from err
 
     def setup_org_for_a_custom_repo(self, options=None):
         """Sets up Org for the given custom repo by:
@@ -608,7 +612,7 @@ class CLIFactory:
         try:
             self._satellite.cli.Repository.synchronize({'id': custom_repo['id']})
         except CLIReturnCodeError as err:
-            raise CLIFactoryError(f'Failed to synchronize repository\n{err.msg}')
+            raise CLIFactoryError(f'Failed to synchronize repository\n{err.msg}') from err
         # Create CV if needed and associate repo with it
         if options.get('content-view-id') is None:
             cv_id = self.make_content_view({'organization-id': org_id})['id']
@@ -619,12 +623,14 @@ class CLIFactory:
                 {'id': cv_id, 'organization-id': org_id, 'repository-id': custom_repo['id']}
             )
         except CLIReturnCodeError as err:
-            raise CLIFactoryError(f'Failed to add repository to content view\n{err.msg}')
+            raise CLIFactoryError(f'Failed to add repository to content view\n{err.msg}') from err
         # Publish a new version of CV
         try:
             self._satellite.cli.ContentView.publish({'id': cv_id})
         except CLIReturnCodeError as err:
-            raise CLIFactoryError(f'Failed to publish new version of content view\n{err.msg}')
+            raise CLIFactoryError(
+                f'Failed to publish new version of content view\n{err.msg}'
+            ) from err
         # Get the version id
         cv_info = self._satellite.cli.ContentView.info({'id': cv_id})
         assert len(cv_info['versions']) > 0
@@ -642,7 +648,9 @@ class CLIFactory:
                     }
                 )
         except CLIReturnCodeError as err:
-            raise CLIFactoryError(f'Failed to promote version to next environment\n{err.msg}')
+            raise CLIFactoryError(
+                f'Failed to promote version to next environment\n{err.msg}'
+            ) from err
         # Create activation key if needed and associate content view with it
         if options.get('activationkey-id') is None:
             activationkey_id = self.make_activation_key(
@@ -661,7 +669,9 @@ class CLIFactory:
                     {'content-view-id': cv_id, 'id': activationkey_id, 'organization-id': org_id}
                 )
             except CLIReturnCodeError as err:
-                raise CLIFactoryError(f'Failed to associate activation-key with CV\n{err.msg}')
+                raise CLIFactoryError(
+                    f'Failed to associate activation-key with CV\n{err.msg}'
+                ) from err
 
         # Add custom_product subscription to activation-key, if SCA mode is disabled
         if self._satellite.is_sca_mode_enabled(org_id) is False:
@@ -686,7 +696,7 @@ class CLIFactory:
             'repository-id': custom_repo['id'],
         }
 
-    def _setup_org_for_a_rh_repo(self, options=None):
+    def _setup_org_for_a_rh_repo(self, options=None, force=False):
         """Sets up Org for the given Red Hat repository by:
 
         1. Checks if organization and lifecycle environment were given, otherwise
@@ -720,10 +730,7 @@ class CLIFactory:
         # If manifest does not exist, clone and upload it
         if len(self._satellite.cli.Subscription.exists({'organization-id': org_id})) == 0:
             with clone() as manifest:
-                try:
-                    self._satellite.upload_manifest(org_id, manifest.content)
-                except CLIReturnCodeError as err:
-                    raise CLIFactoryError(f'Failed to upload manifest\n{err.msg}')
+                self._satellite.upload_manifest(org_id, manifest.content)
         # Enable repo from Repository Set
         try:
             self._satellite.cli.RepositorySet.enable(
@@ -736,7 +743,7 @@ class CLIFactory:
                 }
             )
         except CLIReturnCodeError as err:
-            raise CLIFactoryError(f'Failed to enable repository set\n{err.msg}')
+            raise CLIFactoryError(f'Failed to enable repository set\n{err.msg}') from err
         # Fetch repository info
         try:
             rhel_repo = self._satellite.cli.Repository.info(
@@ -747,7 +754,7 @@ class CLIFactory:
                 }
             )
         except CLIReturnCodeError as err:
-            raise CLIFactoryError(f'Failed to fetch repository info\n{err.msg}')
+            raise CLIFactoryError(f'Failed to fetch repository info\n{err.msg}') from err
         # Synchronize the RH repository
         try:
             self._satellite.cli.Repository.synchronize(
@@ -758,7 +765,7 @@ class CLIFactory:
                 }
             )
         except CLIReturnCodeError as err:
-            raise CLIFactoryError(f'Failed to synchronize repository\n{err.msg}')
+            raise CLIFactoryError(f'Failed to synchronize repository\n{err.msg}') from err
         # Create CV if needed and associate repo with it
         if options.get('content-view-id') is None:
             cv_id = self.make_content_view({'organization-id': org_id})['id']
@@ -769,24 +776,33 @@ class CLIFactory:
                 {'id': cv_id, 'organization-id': org_id, 'repository-id': rhel_repo['id']}
             )
         except CLIReturnCodeError as err:
-            raise CLIFactoryError(f'Failed to add repository to content view\n{err.msg}')
+            raise CLIFactoryError(f'Failed to add repository to content view\n{err.msg}') from err
         # Publish a new version of CV
         try:
             self._satellite.cli.ContentView.publish({'id': cv_id})
         except CLIReturnCodeError as err:
-            raise CLIFactoryError(f'Failed to publish new version of content view\n{err.msg}')
+            raise CLIFactoryError(
+                f'Failed to publish new version of content view\n{err.msg}'
+            ) from err
         # Get the version id
         try:
             cvv = self._satellite.cli.ContentView.info({'id': cv_id})['versions'][-1]
         except CLIReturnCodeError as err:
-            raise CLIFactoryError(f'Failed to fetch content view info\n{err.msg}')
+            raise CLIFactoryError(f'Failed to fetch content view info\n{err.msg}') from err
         # Promote version1 to next env
         try:
             self._satellite.cli.ContentView.version_promote(
-                {'id': cvv['id'], 'organization-id': org_id, 'to-lifecycle-environment-id': env_id}
+                {
+                    'id': cvv['id'],
+                    'organization-id': org_id,
+                    'to-lifecycle-environment-id': env_id,
+                    'force': force,
+                }
             )
         except CLIReturnCodeError as err:
-            raise CLIFactoryError(f'Failed to promote version to next environment\n{err.msg}')
+            raise CLIFactoryError(
+                f'Failed to promote version to next environment\n{err.msg}'
+            ) from err
         # Create activation key if needed and associate content view with it
         if options.get('activationkey-id') is None:
             activationkey_id = self.make_activation_key(
@@ -805,7 +821,9 @@ class CLIFactory:
                     {'id': activationkey_id, 'organization-id': org_id, 'content-view-id': cv_id}
                 )
             except CLIReturnCodeError as err:
-                raise CLIFactoryError(f'Failed to associate activation-key with CV\n{err.msg}')
+                raise CLIFactoryError(
+                    f'Failed to associate activation-key with CV\n{err.msg}'
+                ) from err
 
         # Add default subscription to activation-key, if SCA mode is disabled
         if self._satellite.is_sca_mode_enabled(org_id) is False:
@@ -832,7 +850,11 @@ class CLIFactory:
         }
 
     def setup_org_for_a_rh_repo(
-        self, options=None, force_manifest_upload=False, force_use_cdn=False
+        self,
+        options=None,
+        force_manifest_upload=False,
+        force_use_cdn=False,
+        force=False,
     ):
         """Wrapper above ``_setup_org_for_a_rh_repo`` to use custom downstream repo
         instead of CDN's 'Satellite Capsule', 'Satellite Tools'  and base OS repos if
@@ -861,33 +883,32 @@ class CLIFactory:
         elif 'Satellite Capsule' in options.get('repository'):
             custom_repo_url = settings.repos.capsule_repo
         if force_use_cdn or settings.robottelo.cdn or not custom_repo_url:
-            return self._setup_org_for_a_rh_repo(options)
-        else:
-            options['url'] = custom_repo_url
-            result = self.setup_org_for_a_custom_repo(options)
-            if force_manifest_upload:
-                with clone() as manifest:
-                    self._satellite.put(manifest.path, manifest.name)
-                try:
-                    self._satellite.cli.Subscription.upload(
-                        {
-                            'file': manifest.name,
-                            'organization-id': result.get('organization-id'),
-                        }
-                    )
-                except CLIReturnCodeError as err:
-                    raise CLIFactoryError(f'Failed to upload manifest\n{err.msg}')
+            return self._setup_org_for_a_rh_repo(options, force)
+        options['url'] = custom_repo_url
+        result = self.setup_org_for_a_custom_repo(options)
+        if force_manifest_upload:
+            with clone() as manifest:
+                self._satellite.put(manifest.path, manifest.name)
+            try:
+                self._satellite.cli.Subscription.upload(
+                    {
+                        'file': manifest.name,
+                        'organization-id': result.get('organization-id'),
+                    }
+                )
+            except CLIReturnCodeError as err:
+                raise CLIFactoryError(f'Failed to upload manifest\n{err.msg}') from err
 
-                # Add default subscription to activation-key, if SCA mode is disabled
-                if self._satellite.is_sca_mode_enabled(result['organization-id']) is False:
-                    self.activationkey_add_subscription_to_repo(
-                        {
-                            'activationkey-id': result['activationkey-id'],
-                            'organization-id': result['organization-id'],
-                            'subscription': constants.DEFAULT_SUBSCRIPTION_NAME,
-                        }
-                    )
-            return result
+            # Add default subscription to activation-key, if SCA mode is disabled
+            if self._satellite.is_sca_mode_enabled(result['organization-id']) is False:
+                self.activationkey_add_subscription_to_repo(
+                    {
+                        'activationkey-id': result['activationkey-id'],
+                        'organization-id': result['organization-id'],
+                        'subscription': constants.DEFAULT_SUBSCRIPTION_NAME,
+                    }
+                )
+        return result
 
     @staticmethod
     def _get_capsule_vm_distro_repos(distro):
@@ -986,9 +1007,7 @@ class CLIFactory:
             missing_permissions = set(permission_names).difference(set(available_permission_names))
             if missing_permissions:
                 raise CLIFactoryError(
-                    'Permissions "{}" are not available in Resource "{}"'.format(
-                        list(missing_permissions), resource_type
-                    )
+                    f'Permissions "{list(missing_permissions)}" are not available in Resource "{resource_type}"'
                 )
             # Create the current resource type role permissions
             options = {'role-id': role_id}
@@ -1086,7 +1105,7 @@ class CLIFactory:
             try:
                 self._satellite.upload_manifest(org_id, interface='CLI')
             except CLIReturnCodeError as err:
-                raise CLIFactoryError(f'Failed to upload manifest\n{err.msg}')
+                raise CLIFactoryError(f'Failed to upload manifest\n{err.msg}') from err
 
         custom_product, repos_info = self.setup_cdn_and_custom_repositories(
             org_id=org_id, repos=repos, download_policy=download_policy

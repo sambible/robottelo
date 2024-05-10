@@ -4,34 +4,18 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: SCAPPlugin
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
-import os
 
 import pytest
 
-from robottelo.config import robottelo_tmp_dir, settings
 from robottelo.constants import DataFile
 from robottelo.utils.datafactory import gen_string
-
-
-@pytest.fixture(scope='module')
-def oscap_content_path(module_target_sat):
-    _, file_name = os.path.split(settings.oscap.content_path)
-
-    local_file = robottelo_tmp_dir.joinpath(file_name)
-    module_target_sat.get(remote_path=settings.oscap.content_path, local_path=str(local_file))
-    return local_file
 
 
 @pytest.mark.skip_if_open("BZ:2167937")
@@ -45,7 +29,7 @@ def test_positive_end_to_end(
 
     :id: 9870555d-0b60-41ab-a481-81d4d3f78fec
 
-    :Steps:
+    :steps:
 
         1. Create an openscap content.
         2. Read values from created entity.
@@ -53,8 +37,6 @@ def test_positive_end_to_end(
         4. Delete openscap content
 
     :expectedresults: All expected CRUD actions finished successfully
-
-    :CaseLevel: Integration
     """
     title = gen_string('alpha')
     new_title = gen_string('alpha')
@@ -93,7 +75,7 @@ def test_negative_create_with_same_name(session, oscap_content_path, default_org
 
     :id: f5c6491d-b83c-4ca2-afdf-4bb93e6dd92b
 
-    :Steps:
+    :steps:
 
         1. Create an openscap content.
         2. Provide all the appropriate parameters.
@@ -128,7 +110,7 @@ def test_external_disa_scap_content(session, default_org, default_location):
 
     :id: 5f29254e-7c15-45e1-a2ec-4da1d3d8d74d
 
-    :Steps:
+    :steps:
 
         1. Create an openscap content with external DISA SCAP content.
         2. Assert that openscap content has been created.

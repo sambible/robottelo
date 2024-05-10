@@ -1,6 +1,8 @@
 Team:
     required: true
 BZ: {}
+BlockedBy: {}
+Verifies: {}
 CaseAutomation:
     casesensitive: true
     choices:
@@ -15,7 +17,8 @@ CaseComponent:
     # No spaces allowed
     - ActivationKeys
     - AlternateContentSources
-    - Ansible
+    - Ansible-ConfigurationManagement
+    - Ansible-RemoteExecution
     - AnsibleCollection
     - API
     - AuditLog
@@ -25,9 +28,8 @@ CaseComponent:
     - Branding
     - BVT
     - Candlepin
-    - Capsule
+    - ForemanProxy
     - Capsule-Content
-    - Certificates
     - ComputeResources
     - ComputeResources-Azure
     - ComputeResources-CNV
@@ -47,15 +49,14 @@ CaseComponent:
     - DiscoveryImage
     - DiscoveryPlugin
     - Documentation
-    - Dynflow
-    - Email
     - Entitlements
     - ErrataManagement
     - Fact
     - ForemanDebug
-    - ForemanMaintain
+    - SatelliteMaintain
     - Hammer
     - Hammer-Content
+    - HTTPProxy
     - HostCollections
     - HostForm
     - HostGroup
@@ -63,10 +64,9 @@ CaseComponent:
     - Hosts-Content
     - Infobloxintegration
     - Infrastructure
-    - Installer
+    - Installation
     - InterSatelliteSync
     - katello-tracer
-    - LDAP
     - Leappintegration
     - LifecycleEnvironments
     - LocalizationInternationalization
@@ -75,7 +75,6 @@ CaseComponent:
     - Networking
     - Notifications
     - OrganizationsandLocations
-    - Packaging
     - Parameters
     - Provisioning
     - ProvisioningTemplates
@@ -88,16 +87,12 @@ CaseComponent:
     - RemoteExecution
     - Reporting
     - Repositories
-    - RHCloud-CloudConnector
-    - RHCloud-Insights
-    - RHCloud-Inventory
+    - RHCloud
     - rubygem-foreman-redhat_access
-    - satellite-change-hostname
     - SatelliteClone
     - SCAPPlugin
     - Search
     - Security
-    - SELinux
     - Settings
     - SubscriptionManagement
     - Subscriptions-virt-who
@@ -119,15 +114,6 @@ CaseImportance:
     - High
     - Medium
     - Low
-    required: true
-    type: choice
-CaseLevel:
-    casesensitive: true
-    choices:
-    - Component
-    - Integration
-    - System
-    - Acceptance
     required: true
     type: choice
 CasePosNeg:
@@ -157,20 +143,6 @@ SubComponent:
     type: choice
 Subtype1: {}
 Teardown: {}
-TestType:
-    casesensitive: false
-    choices:
-    - Functional
-    - Structural
-    required: true
-    type: choice
-Upstream:
-    casesensitive: false
-    choices:
-    - 'Yes'
-    - 'No'
-    required: true
-    type: choice
 Parametrized:
     casesensitive: false
     choices:

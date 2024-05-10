@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: Repositories
 
 :team: Phoenix-content
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from random import choice
 from string import punctuation
 
@@ -46,7 +42,6 @@ from robottelo.constants.repos import (
     CUSTOM_FILE_REPO,
     CUSTOM_RPM_SHA,
     FAKE_5_YUM_REPO,
-    FAKE_YUM_DRPM_REPO,
     FAKE_YUM_MD5_REPO,
     FAKE_YUM_SRPM_REPO,
 )
@@ -219,27 +214,6 @@ class TestRepository:
             assert repo.get(key) == repo_options[key]
 
     @pytest.mark.tier1
-    @pytest.mark.upgrade
-    @pytest.mark.parametrize(
-        'repo_options',
-        **parametrized([{'content-type': 'file', 'url': CUSTOM_FILE_REPO}]),
-        indirect=True,
-    )
-    def test_positive_create_with_file_repo(self, repo_options, repo):
-        """Create file repository
-
-        :id: 46f63419-1acc-4ae2-be8c-d97816ba342f
-
-        :parametrized: yes
-
-        :expectedresults: file repository is created
-
-        :CaseImportance: Critical
-        """
-        for key in 'url', 'content-type':
-            assert repo.get(key) == repo_options[key]
-
-    @pytest.mark.tier1
     @pytest.mark.parametrize(
         'repo_options',
         **parametrized(
@@ -270,7 +244,7 @@ class TestRepository:
         for key in 'url', 'content-type':
             assert repo.get(key) == repo_options[key]
         repo = entities.Repository(id=repo['id']).read()
-        assert getattr(repo, 'upstream_username') == repo_options['upstream-username']
+        assert repo.upstream_username == repo_options['upstream-username']
 
     @pytest.mark.tier1
     @pytest.mark.upgrade
@@ -678,7 +652,7 @@ class TestRepository:
         **parametrized(
             [
                 {'content-type': content_type, 'download-policy': 'on_demand'}
-                for content_type in REPO_TYPE.keys()
+                for content_type in REPO_TYPE
                 if content_type != 'yum'
                 if content_type != 'ostree'
             ]
@@ -709,42 +683,6 @@ class TestRepository:
     @pytest.mark.tier1
     @pytest.mark.parametrize(
         'repo_options',
-        **parametrized(
-            [
-                {'content-type': 'yum', 'url': url}
-                for url in (
-                    settings.repos.yum_1.url,
-                    settings.repos.yum_3.url,
-                    settings.repos.yum_4.url,
-                )
-            ]
-        ),
-        indirect=True,
-    )
-    def test_positive_synchronize_yum_repo(self, repo_options, repo, target_sat):
-        """Check if repository can be created and synced
-
-        :id: e3a62529-edbd-4062-9246-bef5f33bdcf0
-
-        :parametrized: yes
-
-        :expectedresults: Repository is created and synced
-
-        :CaseLevel: Integration
-
-        :CaseImportance: Critical
-        """
-        # Repo is not yet synced
-        assert repo['sync']['status'] == 'Not Synced'
-        # Synchronize it
-        target_sat.cli.Repository.synchronize({'id': repo['id']})
-        # Verify it has finished
-        repo = target_sat.cli.Repository.info({'id': repo['id']})
-        assert repo['sync']['status'] == 'Success'
-
-    @pytest.mark.tier1
-    @pytest.mark.parametrize(
-        'repo_options',
         **parametrized([{'content-type': 'file', 'url': CUSTOM_FILE_REPO}]),
         indirect=True,
     )
@@ -756,8 +694,6 @@ class TestRepository:
         :parametrized: yes
 
         :expectedresults: Repository is created and synced
-
-        :CaseLevel: Integration
 
         :CaseImportance: Critical
         """
@@ -799,7 +735,6 @@ class TestRepository:
 
         :BZ: 1328092
 
-        :CaseLevel: Integration
         """
         # Assertion that repo is not yet synced
         assert repo['sync']['status'] == 'Not Synced'
@@ -840,7 +775,6 @@ class TestRepository:
 
         :BZ: 1405503, 1453118
 
-        :CaseLevel: Integration
         """
         # Try to synchronize it
         repo_sync = target_sat.cli.Repository.synchronize({'id': repo['id'], 'async': True})
@@ -913,7 +847,7 @@ class TestRepository:
         indirect=True,
     )
     def test_verify_checksum_container_repo(self, repo, target_sat):
-        """Check if Verify Content Checksum can be run on non container repos
+        """Check if Verify Content Checksum can be run on container repos
 
         :id: c8f0eb45-3cb6-41b2-aad9-52ac847d7bf8
 
@@ -930,38 +864,6 @@ class TestRepository:
         target_sat.cli.Repository.synchronize({'id': repo['id'], 'validate-contents': 'true'})
         new_repo = target_sat.cli.Repository.info({'id': repo['id']})
         assert new_repo['sync']['status'] == 'Success'
-
-    @pytest.mark.tier2
-    @pytest.mark.upgrade
-    @pytest.mark.parametrize(
-        'repo_options',
-        **parametrized(
-            [
-                {
-                    'content-type': 'docker',
-                    'docker-upstream-name': CONTAINER_UPSTREAM_NAME,
-                    'url': CONTAINER_REGISTRY_HUB,
-                    'include-tags': 'latest',
-                }
-            ]
-        ),
-        indirect=True,
-    )
-    def test_positive_synchronize_docker_repo_with_tags_whitelist(
-        self, repo_options, repo, target_sat
-    ):
-        """Check if only whitelisted tags are synchronized
-
-        :id: aa820c65-2de1-4b32-8890-98bd8b4320dc
-
-        :parametrized: yes
-
-        :expectedresults: Only whitelisted tag is synchronized
-        """
-        target_sat.cli.Repository.synchronize({'id': repo['id']})
-        repo = _validated_image_tags_count(repo=repo, sat=target_sat)
-        assert repo_options['include-tags'] in repo['container-image-tags-filter']
-        assert int(repo['content-counts']['container-image-tags']) == 1
 
     @pytest.mark.tier2
     @pytest.mark.parametrize(
@@ -1122,7 +1024,6 @@ class TestRepository:
 
         :BZ: 1459845, 1459874, 1318004
 
-        :CaseLevel: Integration
         """
         target_sat.cli.Repository.synchronize({'id': repo['id']})
         repo = target_sat.cli.Repository.info({'id': repo['id']})
@@ -1179,7 +1080,7 @@ class TestRepository:
             3. Delete one package from repo 1.
             4. Sync the second repo (repo 2) from the first repo (repo 1).
 
-        :Steps:
+        :steps:
             1. Check that the package deleted from repo 1 was removed from repo 2.
 
         :expectedresults: A package removed from repo 1 is removed from repo 2 when synced.
@@ -1251,13 +1152,11 @@ class TestRepository:
 
         :BZ: 1591358
 
-        :CaseLevel: Integration
-
         """
         target_sat.cli.Repository.synchronize({'id': repo['id']})
         repo = target_sat.cli.Repository.info({'id': repo['id']})
         assert repo['sync']['status'] == 'Success'
-        assert repo['content-counts']['source-rpms'] == '0', 'content not ignored correctly'
+        assert repo['content-counts']['srpms'] == '0', 'content not ignored correctly'
 
     @pytest.mark.tier1
     @pytest.mark.skipif(
@@ -1426,27 +1325,6 @@ class TestRepository:
         """
         with pytest.raises(CLIFactoryError):
             module_target_sat.cli_factory.make_repository(repo_options)
-
-    @pytest.mark.tier1
-    @pytest.mark.parametrize(
-        'repo_options',
-        **parametrized([{'name': name} for name in valid_data_list().values()]),
-        indirect=True,
-    )
-    def test_positive_delete_by_id(self, repo, target_sat):
-        """Check if repository can be created and deleted
-
-        :id: bcf096db-0033-4138-90a3-cb7355d5dfaf
-
-        :parametrized: yes
-
-        :expectedresults: Repository is created and then deleted
-
-        :CaseImportance: Critical
-        """
-        target_sat.cli.Repository.delete({'id': repo['id']})
-        with pytest.raises(CLIReturnCodeError):
-            target_sat.cli.Repository.info({'id': repo['id']})
 
     @pytest.mark.tier1
     @pytest.mark.upgrade
@@ -1681,7 +1559,7 @@ class TestRepository:
 
         :BZ: 1436209,1410916
 
-        :Steps:
+        :steps:
             1. Setup a restricted user with permissions that filter the
                products with names like Test_* or "rhel7*"
             2. Create a content view
@@ -1697,7 +1575,6 @@ class TestRepository:
                view, assert that the restricted user still cannot view the
                product repository.
 
-        :CaseLevel: Integration
         """
         required_permissions = {
             'Katello::Product': (
@@ -1854,8 +1731,7 @@ class TestRepository:
         )
         assert f"Successfully uploaded file '{SRPM_TO_UPLOAD}'" in result[0]['message']
         assert (
-            int(target_sat.cli.Repository.info({'id': repo['id']})['content-counts']['source-rpms'])
-            == 1
+            int(target_sat.cli.Repository.info({'id': repo['id']})['content-counts']['srpms']) == 1
         )
 
         # Remove uploaded SRPM
@@ -1867,8 +1743,7 @@ class TestRepository:
             }
         )
         assert (
-            int(target_sat.cli.Repository.info({'id': repo['id']})['content-counts']['source-rpms'])
-            == 0
+            int(target_sat.cli.Repository.info({'id': repo['id']})['content-counts']['srpms']) == 0
         )
 
     @pytest.mark.upgrade
@@ -1910,8 +1785,7 @@ class TestRepository:
         assert len(srpm_list) == 1
         assert target_sat.cli.Srpm.info({'id': srpm_list[0]['id']})[0]['filename'] == SRPM_TO_UPLOAD
         assert (
-            int(target_sat.cli.Repository.info({'id': repo['id']})['content-counts']['source-rpms'])
-            == 1
+            int(target_sat.cli.Repository.info({'id': repo['id']})['content-counts']['srpms']) == 1
         )
         assert (
             len(
@@ -1959,7 +1833,7 @@ class TestRepository:
             }
         )
         assert int(
-            target_sat.cli.Repository.info({'id': repo['id']})['content-counts']['source-rpms']
+            target_sat.cli.Repository.info({'id': repo['id']})['content-counts']['srpms']
         ) == len(target_sat.cli.Srpm.list({'repository-id': repo['id']}))
 
     @pytest.mark.tier1
@@ -1980,7 +1854,7 @@ class TestRepository:
         :Setup:
             1. valid yum repo with Module Streams.
 
-        :Steps:
+        :steps:
             1. Create Yum Repository with url contain module-streams
             2. Initialize synchronization
             3. Another Repository with same Url
@@ -2030,50 +1904,6 @@ class TestRepository:
     @pytest.mark.tier1
     @pytest.mark.parametrize(
         'repo_options',
-        **parametrized([{'content-type': 'yum', 'url': settings.repos.module_stream_0.url}]),
-        indirect=True,
-    )
-    @pytest.mark.parametrize(
-        'repo_options_2',
-        **parametrized([{'content-type': 'yum', 'url': settings.repos.module_stream_1.url}]),
-    )
-    def test_module_stream_list_validation(
-        self, module_org, repo, repo_options_2, module_target_sat
-    ):
-        """Check module-stream get with list on hammer.
-
-        :id: 9842a0c3-8532-4b16-a00a-534fc3b0a776ff89f23e-cd00-4d20-84d3-add0ea24abf8
-
-        :parametrized: yes
-
-        :Setup:
-            1. valid yum repo with Module Streams.
-
-        :Steps:
-            1. Create Yum Repositories with url contain module-streams and Products
-            2. Initialize synchronization
-            3. Verify the module-stream list with various inputs options
-
-        :expectedresults: Verify the module-stream list response.
-
-        :CaseAutomation: Automated
-        """
-        module_target_sat.cli.Repository.synchronize({'id': repo['id']})
-
-        prod_2 = module_target_sat.cli_factory.make_product({'organization-id': module_org.id})
-        repo_options_2['organization-id'] = module_org.id
-        repo_options_2['product-id'] = prod_2['id']
-        repo_2 = module_target_sat.cli_factory.make_repository(repo_options_2)
-
-        module_target_sat.cli.Repository.synchronize({'id': repo_2['id']})
-        module_streams = module_target_sat.cli.ModuleStream.list()
-        assert len(module_streams) > 13, 'Module Streams list failed'
-        module_streams = module_target_sat.cli.ModuleStream.list({'product-id': prod_2['id']})
-        assert len(module_streams) == 7, 'Module Streams list by product failed'
-
-    @pytest.mark.tier1
-    @pytest.mark.parametrize(
-        'repo_options',
         **parametrized([{'content-type': 'yum', 'url': settings.repos.module_stream_1.url}]),
         indirect=True,
     )
@@ -2087,7 +1917,7 @@ class TestRepository:
         :Setup:
             1. valid yum repo with Module Streams.
 
-        :Steps:
+        :steps:
             1. Create Yum Repositories with url contain module-streams
             2. Initialize synchronization
             3. Verify the module-stream info with various inputs options
@@ -2121,7 +1951,7 @@ class TestRepository:
 
         :BZ: 1756951, 2002653
 
-        :Steps:
+        :steps:
             1. Import manifest and enable a Red Hat repository.
             2. Attempt to update the Red Hat repository:
                # hammer repository update --id <id> --url http://example.com/repo
@@ -2177,8 +2007,7 @@ class TestRepository:
 
         :CaseImportance: Critical
         """
-        rhel7_contenthost.install_katello_ca(target_sat)
-        rhel7_contenthost.register_contenthost(module_org.label, module_ak_with_synced_repo['name'])
+        rhel7_contenthost.register(module_org, None, module_ak_with_synced_repo['name'], target_sat)
         assert rhel7_contenthost.subscribed
         rhel7_contenthost.run('yum repolist')
         access_log = target_sat.execute(
@@ -2189,11 +2018,11 @@ class TestRepository:
     @pytest.mark.tier2
     @pytest.mark.parametrize(
         'repo_options',
-        **parametrized([{'content_type': 'yum', 'url': CUSTOM_RPM_SHA}]),
+        **parametrized([{'content-type': 'yum', 'url': CUSTOM_RPM_SHA}]),
         indirect=True,
     )
     def test_positive_sync_sha_repo(self, repo_options, module_target_sat):
-        """Sync a 'sha' repo successfully
+        """Sync repository with 'sha' checksum, which uses 'sha1' in particular actually
 
         :id: 20579f52-a67b-4d3f-be07-41eec059a891
 
@@ -2203,7 +2032,7 @@ class TestRepository:
 
         :BZ: 2024889
 
-        :SubComponent: Candlepin
+        :SubComponent: Pulp
         """
         sha_repo = module_target_sat.cli_factory.make_repository(repo_options)
         sha_repo = module_target_sat.cli.Repository.info({'id': sha_repo['id']})
@@ -2214,7 +2043,7 @@ class TestRepository:
     @pytest.mark.tier2
     @pytest.mark.parametrize(
         'repo_options',
-        **parametrized([{'content_type': 'yum', 'url': CUSTOM_3RD_PARTY_REPO}]),
+        **parametrized([{'content-type': 'yum', 'url': CUSTOM_3RD_PARTY_REPO}]),
         indirect=True,
     )
     def test_positive_sync_third_party_repo(self, repo_options, module_target_sat):
@@ -2359,9 +2188,8 @@ class TestRepository:
 #         :parametrized: yes
 #
 #         :expectedresults: Ostree repository is created and synced
-#
-#         :CaseLevel: Integration
-#
+
+
 #         :BZ: 1625783
 #         """
 #         # Synchronize it
@@ -2546,8 +2374,6 @@ class TestAnsibleCollectionRepository:
 
         :expectedresults: All content synced successfully
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
 
         :parametrized: yes
@@ -2579,8 +2405,6 @@ class TestAnsibleCollectionRepository:
         :id: 4858227e-1669-476d-8da3-4e6bfb6b7e2a
 
         :expectedresults: All content exported and imported successfully
-
-        :CaseLevel: Integration
 
         :CaseImportance: High
 
@@ -2640,8 +2464,6 @@ class TestAnsibleCollectionRepository:
 
         :expectedresults: All content synced successfully
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
 
         """
@@ -2660,7 +2482,7 @@ class TestAnsibleCollectionRepository:
                 'product-id': prod_2['id'],
                 'url': published_url,
                 'content-type': 'ansible_collection',
-                'ansible-collection-reqirements': '{collections: \
+                'ansible-collection-requirements': '{collections: \
                     [{ name: theforeman.operations, version: "0.1.0"}]}',
             }
         )
@@ -2706,282 +2528,6 @@ class TestMD5Repository:
         assert lce['id'] in [lc['id'] for lc in cv['lifecycle-environments']]
 
 
-@pytest.mark.skip_if_open("BZ:1682951")
-class TestDRPMRepository:
-    """Tests specific to using repositories containing delta RPMs."""
-
-    @pytest.mark.tier2
-    @pytest.mark.skip("Uses deprecated DRPM repository")
-    @pytest.mark.parametrize(
-        'repo_options', **parametrized([{'url': FAKE_YUM_DRPM_REPO}]), indirect=True
-    )
-    def test_positive_sync(self, repo, module_org, module_product, target_sat):
-        """Synchronize repository with DRPMs
-
-        :id: a645966c-750b-40ef-a264-dc3bb632b9fd
-
-        :parametrized: yes
-
-        :expectedresults: drpms can be listed in repository
-        """
-        target_sat.cli.Repository.synchronize({'id': repo['id']})
-        result = target_sat.execute(
-            f"ls /var/lib/pulp/published/yum/https/repos/{module_org.label}/Library"
-            f"/custom/{module_product.label}/{repo['label']}/drpms/ | grep .drpm"
-        )
-        assert result.status == 0
-        assert result.stdout
-
-    @pytest.mark.tier2
-    @pytest.mark.skip("Uses deprecated DRPM repository")
-    @pytest.mark.parametrize(
-        'repo_options', **parametrized([{'url': FAKE_YUM_DRPM_REPO}]), indirect=True
-    )
-    def test_positive_sync_publish_cv(self, repo, module_org, module_product, target_sat):
-        """Synchronize repository with DRPMs, add repository to content view
-        and publish content view
-
-        :id: 014bfc80-4622-422e-a0ec-755b1d9f845e
-
-        :parametrized: yes
-
-        :expectedresults: drpms can be listed in content view
-        """
-        target_sat.cli.Repository.synchronize({'id': repo['id']})
-        cv = target_sat.cli_factory.make_content_view({'organization-id': module_org.id})
-        target_sat.cli.ContentView.add_repository({'id': cv['id'], 'repository-id': repo['id']})
-        target_sat.cli.ContentView.publish({'id': cv['id']})
-        result = target_sat.execute(
-            f"ls /var/lib/pulp/published/yum/https/repos/{module_org.label}/content_views/"
-            f"{cv['label']}/1.0/custom/{module_product.label}/{repo['label']}/drpms/ | grep .drpm"
-        )
-        assert result.status == 0
-        assert result.stdout
-
-    @pytest.mark.tier2
-    @pytest.mark.upgrade
-    @pytest.mark.skip("Uses deprecated DRPM repository")
-    @pytest.mark.parametrize(
-        'repo_options', **parametrized([{'url': FAKE_YUM_DRPM_REPO}]), indirect=True
-    )
-    def test_positive_sync_publish_promote_cv(self, repo, module_org, module_product, target_sat):
-        """Synchronize repository with DRPMs, add repository to content view,
-        publish and promote content view to lifecycle environment
-
-        :id: a01cb12b-d388-4902-8532-714f4e28ec56
-
-        :parametrized: yes
-
-        :expectedresults: drpms can be listed in content view in proper
-            lifecycle environment
-        """
-        lce = target_sat.cli_factory.make_lifecycle_environment({'organization-id': module_org.id})
-        target_sat.cli.Repository.synchronize({'id': repo['id']})
-        cv = target_sat.cli_factory.make_content_view({'organization-id': module_org.id})
-        target_sat.cli.ContentView.add_repository({'id': cv['id'], 'repository-id': repo['id']})
-        target_sat.cli.ContentView.publish({'id': cv['id']})
-        content_view = target_sat.cli.ContentView.info({'id': cv['id']})
-        cvv = content_view['versions'][0]
-        target_sat.cli.ContentView.version_promote(
-            {'id': cvv['id'], 'to-lifecycle-environment-id': lce['id']}
-        )
-        result = target_sat.execute(
-            f"ls /var/lib/pulp/published/yum/https/repos/{module_org.label}/{lce['label']}"
-            f"/{cv['label']}/custom/{module_product.label}/{repo['label']}/drpms/ | grep .drpm"
-        )
-        assert result.status == 0
-        assert result.stdout
-
-
-class TestGitPuppetMirror:
-    """Tests for creating the hosts via CLI.
-
-    Notes for GIT puppet mirror content
-
-    This feature does not allow us to actually sync / update the content in a
-    GIT repo. Instead, we essentially "snapshot" a repo's contents at any
-    given time. The ability to update the GIT puppet mirror is / should
-    be provided by Pulp itself, via a script.  However, we should be able to
-    # create a sync schedule against the mirror to make sure it is periodically
-    updated to contain the latest and greatest.
-    """
-
-    @pytest.mark.stubbed
-    @pytest.mark.tier2
-    def test_positive_git_local_create(self):
-        """Create repository with local git puppet mirror.
-
-        :id: 89211cd5-82b8-4391-b729-a7502e57f824
-
-        :CaseLevel: Integration
-
-        :Setup: Assure local GIT puppet has been created and found by pulp
-
-        :Steps: Create link to local puppet mirror via cli
-
-        :expectedresults: Content source containing local GIT puppet mirror
-            content is created
-
-        :CaseAutomation: NotAutomated
-        """
-
-    @pytest.mark.stubbed
-    @pytest.mark.tier2
-    def test_positive_git_local_update(self):
-        """Update repository with local git puppet mirror.
-
-        :id: 341f40f2-3501-4754-9acf-7cda1a61f7db
-
-        :CaseLevel: Integration
-
-        :Setup: Assure local GIT puppet has been created and found by pulp
-
-        :Steps: Modify details for existing puppet repo (name, etc.) via cli
-
-        :expectedresults: Content source containing local GIT puppet mirror
-            content is modified
-
-        :CaseAutomation: NotAutomated
-        """
-
-    @pytest.mark.stubbed
-    @pytest.mark.tier2
-    @pytest.mark.upgrade
-    def test_positive_git_local_delete(self):
-        """Delete repository with local git puppet mirror.
-
-        :id: a243f5bb-5186-41b3-8e8a-07d5cc784ccd
-
-        :CaseLevel: Integration
-
-        :Setup: Assure local GIT puppet has been created and found by pulp
-
-        :Steps: Delete link to local puppet mirror via cli
-
-        :expectedresults: Content source containing local GIT puppet mirror
-            content no longer exists/is available.
-
-        :CaseAutomation: NotAutomated
-        """
-
-    @pytest.mark.stubbed
-    @pytest.mark.tier2
-    def test_positive_git_remote_create(self):
-        """Create repository with remote git puppet mirror.
-
-        :id: 8582529f-3112-4b49-8d8f-f2bbf7dceca7
-
-        :CaseLevel: Integration
-
-        :Setup: Assure remote GIT puppet has been created and found by pulp
-
-        :Steps: Create link to local puppet mirror via cli
-
-        :expectedresults: Content source containing remote GIT puppet mirror
-            content is created
-
-        :CaseAutomation: NotAutomated
-        """
-
-    @pytest.mark.stubbed
-    @pytest.mark.tier2
-    def test_positive_git_remote_update(self):
-        """Update repository with remote git puppet mirror.
-
-        :id: 582c50b3-3b90-4244-b694-97642b1b13a9
-
-        :CaseLevel: Integration
-
-        :Setup: Assure remote  GIT puppet has been created and found by pulp
-
-        :Steps: modify details for existing puppet repo (name, etc.) via cli
-
-        :expectedresults: Content source containing remote GIT puppet mirror
-            content is modified
-
-        :CaseAutomation: NotAutomated
-        """
-
-    @pytest.mark.stubbed
-    @pytest.mark.tier2
-    @pytest.mark.upgrade
-    def test_positive_git_remote_delete(self):
-        """Delete repository with remote git puppet mirror.
-
-        :id: 0a23f969-b202-4c6c-b12e-f651a0b7d049
-
-        :CaseLevel: Integration
-
-        :Setup: Assure remote GIT puppet has been created and found by pulp
-
-        :Steps: Delete link to remote puppet mirror via cli
-
-        :expectedresults: Content source containing remote GIT puppet mirror
-            content no longer exists/is available.
-
-        :CaseAutomation: NotAutomated
-        """
-
-    @pytest.mark.stubbed
-    @pytest.mark.tier2
-    def test_positive_git_sync(self):
-        """Sync repository with git puppet mirror.
-
-        :id: a46c16bd-0986-48db-8e62-aeb3907ba4d2
-
-        :CaseLevel: Integration
-
-        :Setup: git mirror (local or remote) exists as a content source
-
-        :Steps: Attempt to sync content from mirror via cli
-
-        :expectedresults: Content is pulled down without error
-
-        :expectedresults: Confirmation that various resources actually exist in
-            local content repo
-
-        :CaseAutomation: NotAutomated
-        """
-
-    @pytest.mark.stubbed
-    @pytest.mark.tier2
-    def test_positive_git_sync_schedule(self):
-        """Scheduled sync of git puppet mirror.
-
-        :id: 0d58d180-9836-4524-b608-66b67f9cab12
-
-        :CaseLevel: Integration
-
-        :Setup: git mirror (local or remote) exists as a content source
-
-        :Steps: Attempt to create a scheduled sync content from mirror, via cli
-
-        :expectedresults: Content is pulled down without error  on expected
-            schedule
-
-        :CaseAutomation: NotAutomated
-        """
-
-    @pytest.mark.stubbed
-    @pytest.mark.tier2
-    def test_positive_git_view_content(self):
-        """View content in synced git puppet mirror
-
-        :id: 02f06092-dd6c-49fa-be9f-831e52476e41
-
-        :CaseLevel: Integration
-
-        :Setup: git mirror (local or remote) exists as a content source
-
-        :Steps: Attempt to list contents of repo via cli
-
-        :expectedresults: Spot-checked items (filenames, dates, perhaps
-            checksums?) are correct.
-
-        :CaseAutomation: NotAutomated
-        """
-
-
 class TestFileRepository:
     """Specific tests for File Repositories"""
 
@@ -2998,7 +2544,7 @@ class TestFileRepository:
 
         :parametrized: yes
 
-        :Steps:
+        :steps:
             1. Create a File Repository
             2. Upload an arbitrary file to it
 
@@ -3026,27 +2572,7 @@ class TestFileRepository:
         filesearch = entities.File().search(
             query={"search": f"name={RPM_TO_UPLOAD} and repository={repo['name']}"}
         )
-        assert RPM_TO_UPLOAD == filesearch[0].name
-
-    @pytest.mark.stubbed
-    @pytest.mark.tier1
-    def test_positive_file_permissions(self):
-        """Check file permissions after file upload to File Repository
-
-        :id: 03da888a-69ba-492f-b204-c62d85948d8a
-
-        :Setup:
-            1. Create a File Repository
-            2. Upload an arbitrary file to it
-
-        :Steps: Retrieve file permissions from File Repository
-
-        :expectedresults: uploaded file permissions are kept after upload
-
-        :CaseAutomation: NotAutomated
-
-        :CaseImportance: Critical
-        """
+        assert filesearch[0].name == RPM_TO_UPLOAD
 
     @pytest.mark.tier1
     @pytest.mark.upgrade
@@ -3066,7 +2592,7 @@ class TestFileRepository:
             1. Create a File Repository
             2. Upload an arbitrary file to it
 
-        :Steps: Remove a file from File Repository
+        :steps: Remove a file from File Repository
 
         :expectedresults: file is not listed under File Repository after
             removal
@@ -3122,7 +2648,7 @@ class TestFileRepository:
             1. Create a directory to be synced with a pulp manifest on its root
             2. Make the directory available through http
 
-        :Steps:
+        :steps:
             1. Create a File Repository with url pointing to http url
                 created on setup
             2. Initialize synchronization
@@ -3152,7 +2678,7 @@ class TestFileRepository:
             1. Create a directory to be synced with a pulp manifest on its root
                 locally (on the Satellite/Foreman host)
 
-        :Steps:
+        :steps:
             1. Create a File Repository with url pointing to local url
                 created on setup
             2. Initialize synchronization
@@ -3190,7 +2716,7 @@ class TestFileRepository:
                 locally (on the Satellite/Foreman host)
             2. Make sure it contains symlinks
 
-        :Steps:
+        :steps:
             1. Create a File Repository with url pointing to local url
                 created on setup
             2. Initialize synchronization
@@ -3232,7 +2758,7 @@ class TestFileRepository:
             4. Add some text keyword to the file locally.
             5. Upload new version of file.
 
-        :Steps:
+        :steps:
             1. Check that the repo contains only the new version of the file
 
         :expectedresults: The file is not duplicated and only the latest version of the file
@@ -3280,81 +2806,6 @@ class TestFileRepository:
         # Get the file and assert it has the updated contents
         textfile = requests.get(f"{repo['published-at']}{text_file_name}", verify=False)
         assert 'Second File' in textfile.text
-
-
-@pytest.mark.stubbed
-@pytest.mark.tier2
-def test_copy_package_group_between_repos():
-    """
-       Copy a group of packages from one repo to another.
-
-    :id: 18d832fc-7e27-4067-99ea-5da9eef22253
-
-    :Setup:
-        1. Add a product and sync a repo which has package groups (repo 1)
-        2. Create another product and create a yum repo (repo 2)
-        3. Select the package group from repo 1 and sync it to repo 2
-
-    :Steps:
-        Assert the list of package in repo 2 matches the group list from repo 1
-
-    :CaseAutomation: NotAutomated
-
-    :CaseImportance: Medium
-    """
-
-
-@pytest.mark.stubbed
-@pytest.mark.tier2
-def test_include_and_exclude_content_units():
-    """
-       Select two packages and include and exclude some dependencies
-       and then copy them from one repo to another.
-
-    :id: 073a0ade-6860-4b34-b64f-0f1a75025356
-
-    :Setup:
-        1. Add a product and sync a repo which has packages with dependencies (repo 1)
-        2. Create another product and create a yum repo (repo 2)
-        3. Select a package and include its dependencies
-        4. Select a package and exclude its dependencies
-        5. Copy packages from repo 1 to repo 2
-
-    :Steps:
-        Assert the list of packages in repo 2 matches the packages selected in repo 1,
-        including only those dependencies expected.
-
-    :CaseAutomation: NotAutomated
-
-    :CaseImportance: Medium
-    """
-
-
-@pytest.mark.stubbed
-@pytest.mark.tier2
-def test_copy_erratum_and_RPMs_within_a_date_range():
-    """
-       Select some packages, filer by date range,
-       and then copy them from one repo to another.
-
-    :id: da48011b-841a-4706-84b5-2dcfe371c30a
-
-    :Setup:
-        1. Add a product and sync a repo which has packages with dependencies (repo 1)
-        2. Create another product and create a yum repo (repo 2)
-        3. Select some packages and include dependencies
-        4. Filter by date range
-        5. Copy filtered list of items from repo 1 to repo 2
-        6. Repeat using errata in place of RPMs
-
-    :Steps:
-        Assert the list of packages or errata in repo 2 matches those selected
-        and filtered in repo 1, including those dependencies expected.
-
-    :CaseAutomation: NotAutomated
-
-    :CaseImportance: Medium
-    """
 
 
 @pytest.mark.tier2

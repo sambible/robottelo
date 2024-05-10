@@ -4,14 +4,10 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: System
-
-:TestType: Functional
-
 :CaseImportance: Medium
 
-:Upstream: No
 """
+
 import pytest
 
 from robottelo.constants import DEFAULT_ORG
@@ -29,7 +25,7 @@ def test_positive_foreman_service_auto_restart(foreman_service_teardown):
 
     :id: 766560b8-30bb-11eb-8dae-d46d6dd3b5b2
 
-    :Steps:
+    :steps:
         1. Stop the Foreman Service
         2. Make any API call to Satellite
 

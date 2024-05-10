@@ -23,14 +23,14 @@ def default_location(session_target_sat):
 def current_sat_org(target_sat):
     """Return the current organization assigned to the Satellite host"""
     sat_host = target_sat.api.Host().search(query={'search': f'name={target_sat.hostname}'})[0]
-    return sat_host.organization.read().name
+    return sat_host.organization.read()
 
 
 @pytest.fixture
 def current_sat_location(target_sat):
     """Return the current location assigned to the Satellite host"""
     sat_host = target_sat.api.Host().search(query={'search': f'name={target_sat.hostname}'})[0]
-    return sat_host.location.read().name
+    return sat_host.location.read()
 
 
 @pytest.fixture
@@ -193,6 +193,16 @@ def module_extra_rhel_entitlement_manifest():
     """Yields a manifest in entitlement mode with subscriptions determined by the
     'manifest_category.extra_rhel_entitlement` setting in conf/manifest.yaml."""
     with Manifester(manifest_category=settings.manifest.extra_rhel_entitlement) as manifest:
+        yield manifest
+
+
+@pytest.fixture(scope='module')
+def module_extra_rhel_sca_manifest():
+    """Yields a manifest in sca mode with subscriptions determined by the
+    'manifest_category.extra_rhel_entitlement` setting in conf/manifest.yaml."""
+    with Manifester(
+        manifest_category=settings.manifest.extra_rhel_entitlement, simple_content_access="enabled"
+    ) as manifest:
         yield manifest
 
 

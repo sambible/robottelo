@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Integration
-
-:CaseComponent: LDAP
+:CaseComponent: Authentication
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import os
 from time import sleep
 
@@ -120,7 +116,6 @@ def rhsso_groups_teardown(module_target_sat, default_sso_host):
         default_sso_host.delete_rhsso_group(group_name)
 
 
-@pytest.mark.external_auth
 @pytest.fixture
 def configure_hammer_session(parametrized_enrolled_sat, enable=True):
     """Take backup of the hammer config file and enable use_sessions"""
@@ -202,11 +197,13 @@ def test_positive_create_with_https(
         assert ldap_source['ldap_server']['name'] == ldap_auth_name
         assert ldap_source['ldap_server']['host'] == auth_data['ldap_hostname']
         assert ldap_source['ldap_server']['port'] == '636'
-    with module_target_sat.ui_session(
-        test_name, username, auth_data['ldap_user_passwd']
-    ) as ldapsession:
-        with pytest.raises(NavigationTriesExceeded):
-            ldapsession.user.search('')
+    with (
+        module_target_sat.ui_session(
+            test_name, username, auth_data['ldap_user_passwd']
+        ) as ldapsession,
+        pytest.raises(NavigationTriesExceeded),
+    ):
+        ldapsession.user.search('')
     assert module_target_sat.api.User().search(query={'search': f'login="{username}"'})
 
 
@@ -224,7 +221,6 @@ def test_single_sign_on_ldap_ipa_server(
     :expectedresults: After single sign on user should redirected from /extlogin to /hosts page
 
     :BZ: 1941997
-
     """
     result = target_sat.execute(f'echo {settings.ipa.password} | kinit {settings.ipa.user}')
     assert result.status == 0
@@ -249,7 +245,6 @@ def test_single_sign_on_ldap_ad_server(
         using curl. It should navigate to hosts page. (verify using url only)
 
     :BZ: 1941997
-
     """
     # create the kerberos ticket for authentication
     result = target_sat.execute(f'echo {settings.ldap.password} | kinit {settings.ldap.username}')
@@ -336,7 +331,9 @@ def test_session_expire_rhsso_idle_timeout(
         session.rhsso_login.login(
             {'username': settings.rhsso.rhsso_user, 'password': settings.rhsso.rhsso_password}
         )
-        sleep(60)
+        sleep(
+            150
+        )  # give the browser some time to actually logout, even though Satellite should terminate session after one minute
         with pytest.raises(NavigationTriesExceeded) as error:
             session.task.read_all(widget_names='current_user')['current_user']
         assert error.typename == 'NavigationTriesExceeded'
@@ -460,7 +457,6 @@ def test_user_permissions_rhsso_user_after_group_delete(
 
     :expectedresults: external rhsso user's permissions should get revoked after external rhsso
         group deletion.
-
     """
     default_sso_host.get_rhsso_client_id()
     username = settings.rhsso.rhsso_user
@@ -548,7 +544,7 @@ def test_user_permissions_rhsso_user_multiple_group(
     group_names = ['sat_users', 'sat_admins']
     arguments = [{'roles': katello_role.name}, {'admin': 1}]
     external_auth_source = module_target_sat.cli.ExternalAuthSource.info({'name': "External"})
-    for group_name, argument in zip(group_names, arguments):
+    for group_name, argument in zip(group_names, arguments, strict=True):
         # adding/creating rhsso groups
         default_sso_host.create_group(group_name=group_name)
         default_sso_host.update_rhsso_user(username, group_name=group_name)
@@ -618,7 +614,6 @@ def test_permissions_external_ldap_mapped_rhsso_group(
 
     :expectedresults: The external ldap mapped rhsso user should contain the permissions
         based on the user group level
-
     """
     ad_data = ad_data()
     login_details = {
@@ -663,7 +658,6 @@ def test_negative_negotiate_login_without_ticket(
     :expectedresults:
         1. Proper messages are returned in all cases.
         2. Login and hosts listing fails without Kerberos ticket.
-
     """
     result = parametrized_enrolled_sat.cli.Auth.status()
     assert NO_KERB_MSG in str(result)
@@ -702,7 +696,6 @@ def test_positive_negotiate_login_with_ticket(
         2. Negotiate login works with the ticket.
         3. External user is created and permissions enforcing works.
         4. Proper messages are returned in all cases.
-
     """
     auth_type = request.node.callspec.params['parametrized_enrolled_sat']
     user = (
@@ -766,7 +759,6 @@ def test_positive_negotiate_CRUD(
         3. Listing and CRUD operations via hammer succeed.
 
     :BZ: 2122617
-
     """
     auth_type = request.node.callspec.params['parametrized_enrolled_sat']
     user = (
@@ -843,7 +835,6 @@ def test_positive_negotiate_logout(
         1. Session is closed on log out properly on logout.
         2. Hammer command fails after log out.
         3. Proper messages are returned in all cases.
-
     """
     auth_type = request.node.callspec.params['parametrized_enrolled_sat']
     user = (
@@ -906,7 +897,6 @@ def test_positive_autonegotiate(
     :expectedresults:
         1. Kerberos ticket can be acquired.
         2. Automatic login occurs on first hammer command, user is created
-
     """
     auth_type = request.node.callspec.params['parametrized_enrolled_sat']
     user = (
@@ -966,7 +956,6 @@ def test_positive_negotiate_manual_with_autonegotiation_disabled(
         1. Kerberos ticket can be acquired.
         2. Manual login successful, user is created.
         3. Session is kept for following Hammer commands.
-
     """
     with parametrized_enrolled_sat.omit_credentials():
         auth_type = request.node.callspec.params['parametrized_enrolled_sat']
@@ -1047,7 +1036,6 @@ def test_negative_autonegotiate_with_autonegotiation_disabled(
         1. Kerberos ticket can be acquired.
         2. Autonegotiation doesn't occur
         3. Action is denied and user not created because the user isn't authenticated.
-
     """
     with parametrized_enrolled_sat.omit_credentials():
         auth_type = request.node.callspec.params['parametrized_enrolled_sat']

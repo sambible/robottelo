@@ -1,4 +1,5 @@
 """Generic base class for cli hammer commands."""
+
 import re
 
 from wait_for import wait_for
@@ -132,28 +133,24 @@ class Base:
         return cls.execute(cls._construct_command(options), ignore_stderr=True, timeout=timeout)
 
     @classmethod
-    def delete_parameter(cls, options=None):
+    def delete_parameter(cls, options=None, timeout=None):
         """
         Deletes parameter from record.
         """
 
         cls.command_sub = 'delete-parameter'
 
-        result = cls.execute(cls._construct_command(options))
-
-        return result
+        return cls.execute(cls._construct_command(options), ignore_stderr=False, timeout=timeout)
 
     @classmethod
-    def dump(cls, options=None):
+    def dump(cls, options=None, timeout=None):
         """
         Displays the content for existing partition table.
         """
 
         cls.command_sub = 'dump'
 
-        result = cls.execute(cls._construct_command(options))
-
-        return result
+        return cls.execute(cls._construct_command(options), ignore_stderr=False, timeout=timeout)
 
     @classmethod
     def _get_username_password(cls, username=None, password=None):
@@ -169,15 +166,9 @@ class Base:
 
         """
         if username is None:
-            try:
-                username = getattr(cls, 'foreman_admin_username')
-            except AttributeError:
-                username = settings.server.admin_username
+            username = getattr(cls, 'foreman_admin_username', settings.server.admin_username)
         if password is None:
-            try:
-                password = getattr(cls, 'foreman_admin_password')
-            except AttributeError:
-                password = settings.server.admin_password
+            password = getattr(cls, 'foreman_admin_password', settings.server.admin_password)
 
         return (username, password)
 
@@ -217,16 +208,14 @@ class Base:
         )
         if return_raw_response:
             return response
-        else:
-            return cls._handle_response(response, ignore_stderr=ignore_stderr)
+        return cls._handle_response(response, ignore_stderr=ignore_stderr)
 
     @classmethod
     def sm_execute(cls, command, hostname=None, timeout=None, **kwargs):
         """Executes the satellite-maintain cli commands on the server via ssh"""
         env_var = kwargs.get('env_var') or ''
         client = get_client(hostname=hostname or cls.hostname)
-        result = client.execute(f'{env_var} satellite-maintain {command}', timeout=timeout)
-        return result
+        return client.execute(f'{env_var} satellite-maintain {command}', timeout=timeout)
 
     @classmethod
     def exists(cls, options=None, search=None):
@@ -381,6 +370,4 @@ class Base:
                 if isinstance(val, list):
                     val = ','.join(str(el) for el in val)
                 tail += f' --{key}="{val}"'
-        cmd = f"{cls.command_base or ''} {cls.command_sub or ''} {tail.strip()} {cls.command_end or ''}"
-
-        return cmd
+        return f"{cls.command_base or ''} {cls.command_sub or ''} {tail.strip()} {cls.command_end or ''}"

@@ -8,18 +8,14 @@ http://theforeman.org/api/apidoc/v2/filters.html
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: UsersRoles
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import pytest
 from requests.exceptions import HTTPError
 
@@ -27,10 +23,9 @@ from requests.exceptions import HTTPError
 @pytest.fixture(scope='module')
 def module_perms(module_target_sat):
     """Search for provisioning template permissions. Set ``cls.ct_perms``."""
-    ct_perms = module_target_sat.api.Permission().search(
+    return module_target_sat.api.Permission().search(
         query={'search': 'resource_type="ProvisioningTemplate"'}
     )
-    return ct_perms
 
 
 @pytest.mark.tier1

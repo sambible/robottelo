@@ -16,6 +16,7 @@ Subcommands::
     delete                        Destroy an environment
     info                          Show an environment
 """
+
 from robottelo.cli.base import Base
 
 
@@ -29,9 +30,7 @@ class LifecycleEnvironment(Base):
 
     @classmethod
     def list(cls, options=None, per_page=False):
-        result = super().list(options, per_page=per_page)
-
-        return result
+        return super().list(options, per_page=per_page)
 
     @classmethod
     def paths(cls, options=None):

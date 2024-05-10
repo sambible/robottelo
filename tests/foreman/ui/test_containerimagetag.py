@@ -4,19 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: ContainerManagement-Content
 
 :team: Phoenix-content
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
-from nailgun import entities
+
 import pytest
 
 from robottelo.constants import (
@@ -30,18 +25,18 @@ from robottelo.utils.issue_handlers import is_open
 
 
 @pytest.fixture(scope="module")
-def module_org():
-    return entities.Organization().create()
+def module_org(module_target_sat):
+    return module_target_sat.api.Organization().create()
 
 
 @pytest.fixture(scope="module")
-def module_product(module_org):
-    return entities.Product(organization=module_org).create()
+def module_product(module_org, module_target_sat):
+    return module_target_sat.api.Product(organization=module_org).create()
 
 
 @pytest.fixture(scope="module")
-def module_repository(module_product):
-    repo = entities.Repository(
+def module_repository(module_product, module_target_sat):
+    repo = module_target_sat.api.Repository(
         content_type=REPO_TYPE['docker'],
         docker_upstream_name=CONTAINER_UPSTREAM_NAME,
         product=module_product,
@@ -60,8 +55,6 @@ def test_positive_search(session, module_org, module_product, module_repository)
     :expectedresults: The docker image tag can be searched and found,
         details are read
 
-    :CaseLevel: Integration
-
     :BZ: 2009069, 2242515
     """
     with session:
@@ -78,5 +71,5 @@ def test_positive_search(session, module_org, module_product, module_repository)
             None,
         )
         assert module_product.name == repo_line['Product']
-        assert DEFAULT_CV == repo_line['Content View']
+        assert repo_line['Content View'] == DEFAULT_CV
         assert 'Success' in repo_line['Last Sync']

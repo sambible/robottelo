@@ -19,6 +19,7 @@ Subcommands::
     list                          View content view export histories
 
 """
+
 from robottelo.cli.base import Base
 
 
@@ -31,7 +32,7 @@ class ContentExport(Base):
     command_requires_org = True
 
     @classmethod
-    def list(cls, output_format='json', options=None):
+    def list(cls, options=None, output_format='json'):
         """
         List previous exports
         """

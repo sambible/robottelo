@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: ActivationKeys
 
 :Team: Phoenix-subscriptions
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import pytest
 from requests.exceptions import HTTPError
 
@@ -44,8 +40,7 @@ class TestActivationKey:
         ak = target_sat.api.ActivationKey(
             content_view=cv, organization=org, name=f"{request.param}_ak"
         ).create()
-        ak_details = {'org': org, "cv": cv, 'ak': ak, 'custom_repo': custom_repo}
-        return ak_details
+        return {'org': org, "cv": cv, 'ak': ak, 'custom_repo': custom_repo}
 
     @pytest.mark.pre_upgrade
     @pytest.mark.parametrize(

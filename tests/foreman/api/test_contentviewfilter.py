@@ -8,19 +8,15 @@ http://www.katello.org/docs/api/apidoc/content_view_filters.html
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: ContentViews
 
 :team: Phoenix-content
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
 
+import http
 from random import randint
 
 from fauxfactory import gen_integer, gen_string
@@ -79,8 +75,6 @@ class TestContentViewFilter:
         :expectedresults: An HTTP 200 response is received if a GET request is
             issued with no arguments specified.
 
-        :CaseLevel: Integration
-
         :CaseImportance: Low
         """
         response = client.get(
@@ -98,8 +92,6 @@ class TestContentViewFilter:
 
         :expectedresults: An HTTP 200 response is received if a GET request is
             issued with bad arguments specified.
-
-        :CaseLevel: Integration
 
         :CaseImportance: Low
         """
@@ -123,7 +115,6 @@ class TestContentViewFilter:
         :expectedresults: Content view filter created successfully and has
             correct name and type
 
-        :CaseLevel: Integration
         """
         cvf = target_sat.api.ErratumContentViewFilter(content_view=content_view, name=name).create()
         assert cvf.name == name
@@ -140,8 +131,6 @@ class TestContentViewFilter:
 
         :expectedresults: Content view filter created successfully and has
             correct name and type
-
-        :CaseLevel: Integration
 
         :CaseImportance: Medium
         """
@@ -164,8 +153,6 @@ class TestContentViewFilter:
         :expectedresults: Content view filter created successfully and has
             correct name and type
 
-        :CaseLevel: Integration
-
         :CaseImportance: Medium
         """
         cvf = target_sat.api.RPMContentViewFilter(content_view=content_view, name=name).create()
@@ -184,7 +171,6 @@ class TestContentViewFilter:
         :expectedresults: Content view filter created successfully and has
             correct inclusion value
 
-        :CaseLevel: Integration
         """
         cvf = target_sat.api.RPMContentViewFilter(
             content_view=content_view, inclusion=inclusion
@@ -203,8 +189,6 @@ class TestContentViewFilter:
         :expectedresults: Content view filter created successfully and has
             correct description
 
-        :CaseLevel: Integration
-
         :CaseImportance: Low
         """
         cvf = target_sat.api.RPMContentViewFilter(
@@ -222,7 +206,6 @@ class TestContentViewFilter:
         :expectedresults: Content view filter created successfully and has
             repository assigned
 
-        :CaseLevel: Integration
         """
         cvf = target_sat.api.RPMContentViewFilter(
             content_view=content_view,
@@ -245,8 +228,6 @@ class TestContentViewFilter:
 
         :expectedresults: Content view filter created successfully and has
             'original packages' value
-
-        :CaseLevel: Integration
 
         :CaseImportance: Medium
         """
@@ -271,7 +252,6 @@ class TestContentViewFilter:
         :expectedresults: Content view filter created successfully and has both
             repositories assigned (yum and docker)
 
-        :CaseLevel: Integration
         """
         docker_repository = module_target_sat.api.Repository(
             content_type='docker',
@@ -305,7 +285,6 @@ class TestContentViewFilter:
         :expectedresults: Content view filter created successfully for both
             Include and Exclude Type
 
-        :CaseLevel: Integration
         """
         content_view.repository += [sync_repo_module_stream]
         content_view.update(['repository'])
@@ -331,8 +310,6 @@ class TestContentViewFilter:
 
         :expectedresults: Content view filter was not created
 
-        :CaseLevel: Integration
-
         :CaseImportance: Critical
         """
         with pytest.raises(HTTPError):
@@ -345,8 +322,6 @@ class TestContentViewFilter:
         :id: 73a64ca7-07a3-49ee-8921-0474a16a23ff
 
         :expectedresults: Second content view filter was not created
-
-        :CaseLevel: Integration
 
         :CaseImportance: Low
         """
@@ -364,8 +339,6 @@ class TestContentViewFilter:
 
         :expectedresults: Content view filter is not created
 
-        :CaseLevel: Integration
-
         :CaseImportance: Low
         """
         with pytest.raises(HTTPError):
@@ -379,8 +352,6 @@ class TestContentViewFilter:
         :id: aa427770-c327-4ca1-b67f-a9a94edca784
 
         :expectedresults: Content view filter is not created
-
-        :CaseLevel: Integration
 
         :CaseImportance: Low
         """
@@ -397,8 +368,6 @@ class TestContentViewFilter:
         :id: 07caeb9d-419d-43f8-996b-456b0cc0f70d
 
         :expectedresults: Content view filter was deleted
-
-        :CaseLevel: Integration
 
         :CaseImportance: Critical
         """
@@ -419,7 +388,6 @@ class TestContentViewFilter:
         :expectedresults: Content view filter updated successfully and name was
             changed
 
-        :CaseLevel: Integration
         """
         cvf = target_sat.api.RPMContentViewFilter(content_view=content_view).create()
         cvf.name = name
@@ -436,8 +404,6 @@ class TestContentViewFilter:
 
         :expectedresults: Content view filter updated successfully and
             description was changed
-
-        :CaseLevel: Integration
 
         :CaseImportance: Low
         """
@@ -458,7 +424,6 @@ class TestContentViewFilter:
         :expectedresults: Content view filter updated successfully and
             inclusion value was changed
 
-        :CaseLevel: Integration
         """
         cvf = target_sat.api.RPMContentViewFilter(content_view=content_view).create()
         cvf.inclusion = inclusion
@@ -474,7 +439,6 @@ class TestContentViewFilter:
         :expectedresults: Content view filter updated successfully and has new
             repository assigned
 
-        :CaseLevel: Integration
         """
         cvf = target_sat.api.RPMContentViewFilter(
             content_view=content_view,
@@ -498,8 +462,6 @@ class TestContentViewFilter:
 
         :expectedresults: Content view filter updated successfully and has new
             repositories assigned
-
-        :CaseLevel: Integration
 
         :CaseImportance: Low
         """
@@ -533,7 +495,6 @@ class TestContentViewFilter:
         :expectedresults: Content view filter updated successfully and
             'original packages' value was changed
 
-        :CaseLevel: Integration
         """
         cvf = target_sat.api.RPMContentViewFilter(
             content_view=content_view,
@@ -556,7 +517,6 @@ class TestContentViewFilter:
         :expectedresults: Content view filter was updated successfully and has
             both repositories assigned (yum and docker)
 
-        :CaseLevel: Integration
         """
         cvf = target_sat.api.RPMContentViewFilter(
             content_view=content_view,
@@ -588,8 +548,6 @@ class TestContentViewFilter:
 
         :expectedresults: Content view filter was not updated
 
-        :CaseLevel: Integration
-
         :CaseImportance: Low
         """
         cvf = target_sat.api.RPMContentViewFilter(content_view=content_view).create()
@@ -604,8 +562,6 @@ class TestContentViewFilter:
         :id: b68569f1-9f7b-4a95-9e2a-a5da348abff7
 
         :expectedresults: Content view filter was not updated
-
-        :CaseLevel: Integration
 
         :CaseImportance: Low
         """
@@ -625,7 +581,6 @@ class TestContentViewFilter:
 
         :expectedresults: Content view filter was not updated
 
-        :CaseLevel: Integration
         """
         cvf = target_sat.api.RPMContentViewFilter(content_view=content_view).create()
         cvf.content_view.id = gen_integer(10000, 99999)
@@ -641,7 +596,6 @@ class TestContentViewFilter:
 
         :expectedresults: Content view filter was not updated
 
-        :CaseLevel: Integration
         """
         cvf = target_sat.api.RPMContentViewFilter(
             content_view=content_view,
@@ -659,8 +613,6 @@ class TestContentViewFilter:
         :id: e11ba045-da8a-4f26-a0b9-3b1149358717
 
         :expectedresults: Content view filter was not updated
-
-        :CaseLevel: Integration
 
         :CaseImportance: Low
         """
@@ -696,8 +648,6 @@ class TestContentViewFilter:
 
         :expectedresults:
             1. Filters applied flag is set correctly per usage.
-
-        :CaseLevel: Integration
 
         :CaseImportance: Medium
 
@@ -784,7 +734,6 @@ class TestContentViewFilterRule:
         :expectedresults: Content View should get published and promoted successfully
             with correct Module Stream count.
 
-        :CaseLevel: Integration
         """
         # Exclude module stream filter
         content_view = content_view_module_stream
@@ -840,7 +789,6 @@ class TestContentViewFilterRule:
         :expectedresults: Module Stream count changes automatically after including or
             excluding modular errata
 
-        :CaseLevel: Integration
         """
         content_view = content_view_module_stream
         cv_filter = target_sat.api.ErratumContentViewFilter(
@@ -890,7 +838,6 @@ class TestContentViewFilterRule:
 
         :expectedresults: Verify module stream and errata count should correct
 
-        :CaseLevel: Integration
         """
         content_view = content_view_module_stream
         # apply include errata filter
@@ -940,7 +887,6 @@ class TestContentViewFilterRule:
 
         :expectedresults: Verify dependant/non dependant module streams are getting fetched.
 
-        :CaseLevel: Integration
         """
         content_view = content_view_module_stream
         content_view.solve_dependencies = True

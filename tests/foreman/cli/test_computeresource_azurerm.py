@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: ComputeResources-Azure
 
 :Team: Rocket
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from fauxfactory import gen_string
 import pytest
 
@@ -42,7 +38,7 @@ def azurerm_hostgroup(
 ):
     """Sets Hostgroup for AzureRm Host Provisioning"""
 
-    hgroup = sat_azure.api.HostGroup(
+    return sat_azure.api.HostGroup(
         architecture=sat_azure_default_architecture,
         compute_resource=module_azurerm_cr,
         domain=sat_azure_domain,
@@ -51,7 +47,6 @@ def azurerm_hostgroup(
         operatingsystem=sat_azure_default_os,
         organization=[sat_azure_org],
     ).create()
-    return hgroup
 
 
 class TestAzureRMComputeResourceTestCase:
@@ -73,7 +68,6 @@ class TestAzureRMComputeResourceTestCase:
 
         :CaseImportance: Critical
 
-        :CaseLevel: Component
         """
         # Create CR
         cr_name = gen_string('alpha')
@@ -156,7 +150,6 @@ class TestAzureRMComputeResourceTestCase:
 
         :CaseImportance: Critical
 
-        :CaseLevel: Integration
         """
 
         # Create
@@ -230,8 +223,6 @@ class TestAzureRMComputeResourceTestCase:
 
         :expectedresults: All the networks from AzureRM CR should be available.
 
-        :CaseLevel: Integration
-
         :BZ: 1850934
         """
 
@@ -255,7 +246,6 @@ class TestAzureRMComputeResourceTestCase:
 
         :expectedresults: Compute-profile values should be create with AzureRm CR
 
-        :CaseLevel: Integration
         """
         username = gen_string('alpha')
         password = gen_string('alpha')
@@ -354,29 +344,31 @@ class TestAzureRMFinishTemplateProvisioning:
         Provisions the host on AzureRM using Finish template
         Later in tests this host will be used to perform assertions
         """
-        with sat_azure.hammer_api_timeout():
-            with sat_azure.skip_yum_update_during_provisioning(template='Kickstart default finish'):
-                host = sat_azure.cli.Host.create(
-                    {
-                        'name': self.hostname,
-                        'compute-resource': module_azurerm_cr.name,
-                        'compute-attributes': self.compute_attrs,
-                        'interface': self.interfaces_attributes,
-                        'location-id': sat_azure_loc.id,
-                        'organization-id': sat_azure_org.id,
-                        'domain-id': sat_azure_domain.id,
-                        'domain': sat_azure_domain.name,
-                        'architecture-id': sat_azure_default_architecture.id,
-                        'operatingsystem-id': sat_azure_default_os.id,
-                        'root-password': gen_string('alpha'),
-                        'image': module_azurerm_custom_finishimg.name,
-                    },
-                    timeout=1800000,
-                )
-                yield host
-                with sat_azure.api_factory.satellite_setting('destroy_vm_on_host_delete=True'):
-                    if sat_azure.cli.Host.exists(search=('name', host['name'])):
-                        sat_azure.cli.Host.delete({'name': self.fullhostname}, timeout=1800000)
+        with (
+            sat_azure.hammer_api_timeout(),
+            sat_azure.skip_yum_update_during_provisioning(template='Kickstart default finish'),
+        ):
+            host = sat_azure.cli.Host.create(
+                {
+                    'name': self.hostname,
+                    'compute-resource': module_azurerm_cr.name,
+                    'compute-attributes': self.compute_attrs,
+                    'interface': self.interfaces_attributes,
+                    'location-id': sat_azure_loc.id,
+                    'organization-id': sat_azure_org.id,
+                    'domain-id': sat_azure_domain.id,
+                    'domain': sat_azure_domain.name,
+                    'architecture-id': sat_azure_default_architecture.id,
+                    'operatingsystem-id': sat_azure_default_os.id,
+                    'root-password': gen_string('alpha'),
+                    'image': module_azurerm_custom_finishimg.name,
+                },
+                timeout=1800000,
+            )
+            yield host
+            with sat_azure.api_factory.satellite_setting('destroy_vm_on_host_delete=True'):
+                if sat_azure.cli.Host.exists(search=('name', host['name'])):
+                    sat_azure.cli.Host.delete({'name': self.fullhostname}, timeout=1800000)
 
     @pytest.fixture(scope='class')
     def azureclient_host(self, azurermclient, class_host_ft):
@@ -398,9 +390,7 @@ class TestAzureRMFinishTemplateProvisioning:
 
         :id: 9e8242e5-3ef3-4884-a200-7ba79b8ef49f
 
-        :CaseLevel: Component
-
-        ::CaseImportance: Critical
+        :CaseImportance: Critical
 
         :steps:
             1. Create a AzureRM Compute Resource and provision host.
@@ -484,27 +474,27 @@ class TestAzureRMUserDataProvisioning:
         Provisions the host on AzureRM using UserData template
         Later in tests this host will be used to perform assertions
         """
-        with sat_azure.hammer_api_timeout():
-            with sat_azure.skip_yum_update_during_provisioning(
-                template='Kickstart default user data'
-            ):
-                host = sat_azure.cli.Host.create(
-                    {
-                        'name': self.hostname,
-                        'compute-attributes': self.compute_attrs,
-                        'interface': self.interfaces_attributes,
-                        'image': module_azurerm_cloudimg.name,
-                        'hostgroup': azurerm_hostgroup.name,
-                        'location': sat_azure_loc.name,
-                        'organization': sat_azure_org.name,
-                        'operatingsystem-id': sat_azure_default_os.id,
-                    },
-                    timeout=1800000,
-                )
-                yield host
-                with sat_azure.api_factory.satellite_setting('destroy_vm_on_host_delete=True'):
-                    if sat_azure.cli.Host.exists(search=('name', host['name'])):
-                        sat_azure.cli.Host.delete({'name': self.fullhostname}, timeout=1800000)
+        with (
+            sat_azure.hammer_api_timeout(),
+            sat_azure.skip_yum_update_during_provisioning(template='Kickstart default user data'),
+        ):
+            host = sat_azure.cli.Host.create(
+                {
+                    'name': self.hostname,
+                    'compute-attributes': self.compute_attrs,
+                    'interface': self.interfaces_attributes,
+                    'image': module_azurerm_cloudimg.name,
+                    'hostgroup': azurerm_hostgroup.name,
+                    'location': sat_azure_loc.name,
+                    'organization': sat_azure_org.name,
+                    'operatingsystem-id': sat_azure_default_os.id,
+                },
+                timeout=1800000,
+            )
+            yield host
+            with sat_azure.api_factory.satellite_setting('destroy_vm_on_host_delete=True'):
+                if sat_azure.cli.Host.exists(search=('name', host['name'])):
+                    sat_azure.cli.Host.delete({'name': self.fullhostname}, timeout=1800000)
 
     @pytest.fixture(scope='class')
     def azureclient_host(self, azurermclient, class_host_ud):
@@ -528,9 +518,7 @@ class TestAzureRMUserDataProvisioning:
 
         :id: c99d2679-1742-4ef3-9288-2961d18a30e7
 
-        :CaseLevel: Component
-
-        ::CaseImportance: Critical
+        :CaseImportance: Critical
 
         :steps:
             1. Create a AzureRM Compute Resource and provision host.

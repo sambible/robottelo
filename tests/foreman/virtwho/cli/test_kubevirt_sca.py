@@ -4,16 +4,12 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Virt-whoConfigurePlugin
 
 :team: Phoenix-subscriptions
 
-:TestType: Functional
-
-:Upstream: No
 """
+
 import pytest
 
 from robottelo.utils.virtwho import (
@@ -38,8 +34,6 @@ class TestVirtWhoConfigforKubevirt:
             1. Config can be created and deployed
             2. Config can be created, fetch and deploy
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
         """
         assert virtwho_config_cli['status'] == 'No Report Yet'
@@ -56,8 +50,6 @@ class TestVirtWhoConfigforKubevirt:
 
         :id: b60f449d-6698-4a3a-be07-7440c2d9ba20
         :expectedresults: hypervisor_id option can be updated.
-
-        :CaseLevel: Integration
 
         :CaseImportance: Medium
         """

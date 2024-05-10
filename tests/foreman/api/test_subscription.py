@@ -8,18 +8,14 @@ https://<sat6.com>/apidoc/v2/subscriptions.html
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: SubscriptionManagement
 
 :team: Phoenix-subscriptions
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from fauxfactory import gen_string
 from nailgun.config import ServerConfig
 from nailgun.entity_mixins import TaskFailedError
@@ -59,7 +55,7 @@ def custom_repo(rh_repo, module_sca_manifest_org, module_target_sat):
 @pytest.fixture(scope='module')
 def module_ak(module_sca_manifest_org, rh_repo, custom_repo, module_target_sat):
     """rh_repo and custom_repo are included here to ensure their execution before the AK"""
-    module_ak = module_target_sat.api.ActivationKey(
+    return module_target_sat.api.ActivationKey(
         content_view=module_sca_manifest_org.default_content_view,
         max_hosts=100,
         organization=module_sca_manifest_org,
@@ -68,7 +64,6 @@ def module_ak(module_sca_manifest_org, rh_repo, custom_repo, module_target_sat):
         ),
         auto_attach=True,
     ).create()
-    return module_ak
 
 
 @pytest.mark.tier1
@@ -208,11 +203,11 @@ def test_positive_delete_manifest_as_another_user(
     )
     # use the first admin to upload a manifest
     with function_entitlement_manifest as manifest:
-        target_sat.api.Subscription(sc1, organization=function_org).upload(
+        target_sat.api.Subscription(server_config=sc1, organization=function_org).upload(
             data={'organization_id': function_org.id}, files={'content': manifest.content}
         )
     # try to search and delete the manifest with another admin
-    target_sat.api.Subscription(sc2, organization=function_org).delete_manifest(
+    target_sat.api.Subscription(server_config=sc2, organization=function_org).delete_manifest(
         data={'organization_id': function_org.id}
     )
     assert len(target_sat.cli.Subscription.list({'organization-id': function_org.id})) == 0
@@ -448,7 +443,7 @@ def test_positive_os_restriction_on_repos():
     """
 
 
-def test_positive_async_endpoint_for_manifest_refresh(target_sat, module_entitlement_manifest_org):
+def test_positive_async_endpoint_for_manifest_refresh(target_sat, function_sca_manifest_org):
     """Verify that manifest refresh is using an async endpoint. Previously this was a single,
     synchronous endpoint. The endpoint to retrieve manifests is now split into two: an async
     endpoint to start "exporting" the manifest, and a second endpoint to download the
@@ -467,12 +462,12 @@ def test_positive_async_endpoint_for_manifest_refresh(target_sat, module_entitle
 
     :BZ: 2066323
     """
-    sub = target_sat.api.Subscription(organization=module_entitlement_manifest_org)
+    sub = target_sat.api.Subscription(organization=function_sca_manifest_org)
     # set log level to 'debug' and restart services
     target_sat.cli.Admin.logging({'all': True, 'level-debug': True})
     target_sat.cli.Service.restart()
     # refresh manifest and assert new log message to confirm async endpoint
-    sub.refresh_manifest(data={'organization_id': module_entitlement_manifest_org.id})
+    sub.refresh_manifest(data={'organization_id': function_sca_manifest_org.id})
     results = target_sat.execute(
         'grep "Sending GET request to upstream Candlepin" /var/log/foreman/production.log'
     )

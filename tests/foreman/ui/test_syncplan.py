@@ -4,23 +4,18 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: SyncPlans
 
 :team: Phoenix-content
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from datetime import datetime, timedelta
 import time
 
 from fauxfactory import gen_choice
-from nailgun import entities
 import pytest
 
 from robottelo.constants import SYNC_INTERVAL
@@ -60,8 +55,6 @@ def test_positive_end_to_end(session, module_org, target_sat):
     :expectedresults: All CRUD actions for component finished successfully
 
     :customerscenario: true
-
-    :CaseLevel: Integration
 
     :BZ: 1693795
     """
@@ -115,8 +108,6 @@ def test_positive_end_to_end_custom_cron(session):
     :id: 48c88529-6318-47b0-97bc-eb46aae0294a
 
     :expectedresults: All CRUD actions for component finished successfully
-
-    :CaseLevel: Integration
     """
     plan_name = gen_string('alpha')
     description = gen_string('alpha')
@@ -171,15 +162,15 @@ def test_positive_search_scoped(session, request, target_sat):
     """
     name = gen_string('alpha')
     start_date = datetime.utcnow() + timedelta(days=10)
-    org = entities.Organization().create()
-    sync_plan = entities.SyncPlan(
+    org = target_sat.api.Organization().create()
+    sync_plan = target_sat.api.SyncPlan(
         name=name,
         interval=SYNC_INTERVAL['day'],
         organization=org,
         enabled=True,
         sync_date=start_date,
     ).create()
-    sync_plan = entities.SyncPlan(organization=org.id, id=sync_plan.id).read()
+    sync_plan = target_sat.api.SyncPlan(organization=org.id, id=sync_plan.id).read()
     request.addfinalizer(lambda: target_sat.api_factory.disable_syncplan(sync_plan))
     with session:
         session.organization.select(org.name)
@@ -198,12 +189,10 @@ def test_positive_synchronize_custom_product_custom_cron_real_time(session, modu
     :id: c551ef9a-6e5a-435a-b24d-e86de203a2bb
 
     :expectedresults: Product is synchronized successfully.
-
-    :CaseLevel: System
     """
     plan_name = gen_string('alpha')
-    product = entities.Product(organization=module_org).create()
-    repo = entities.Repository(product=product).create()
+    product = target_sat.api.Product(organization=module_org).create()
+    repo = target_sat.api.Repository(product=product).create()
     with session:
         # workaround: force session.browser to point to browser object on next line
         session.contenthost.read_all('current_user')
@@ -266,12 +255,10 @@ def test_positive_synchronize_custom_product_custom_cron_past_sync_date(
     :id: 4d9ed0bf-a63c-44de-846d-7cf302273bcc
 
     :expectedresults: Product is synchronized successfully.
-
-    :CaseLevel: System
     """
     plan_name = gen_string('alpha')
-    product = entities.Product(organization=module_org).create()
-    repo = entities.Repository(product=product).create()
+    product = target_sat.api.Product(organization=module_org).create()
+    repo = target_sat.api.Repository(product=product).create()
     with session:
         # workaround: force session.browser to point to browser object on next line
         session.contenthost.read_all('current_user')

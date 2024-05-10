@@ -1,4 +1,5 @@
 """Plugin enables pytest to notify and update the requirements"""
+
 from .req_updater import ReqUpdater
 
 updater = ReqUpdater()
@@ -22,10 +23,10 @@ def pytest_report_header(config):
     e.g:
 
     # Following will update the mandatory requirements
-    # pytest tests/foreman --collect-only --upgrade-required-reqs
+    # pytest tests/foreman --collect-only --update-required-reqs
 
     # Following will update the mandatory and optional requirements
-    # pytest tests/foreman --collect-only --upgrade-all-reqs
+    # pytest tests/foreman --collect-only --update-all-reqs
     """
     if updater.req_deviation:
         print(f"Mandatory Requirements Mismatch: {' '.join(updater.req_deviation)}")
@@ -46,5 +47,5 @@ def pytest_report_header(config):
     if updater.req_deviation or updater.opt_deviation:
         print(
             "To update mismatched requirements, run the pytest command with "
-            "'--upgrade-required-reqs' OR '--upgrade-all-reqs' option."
+            "'--update-required-reqs' OR '--update-all-reqs' option."
         )

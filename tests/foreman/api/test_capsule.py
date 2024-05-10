@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
-:CaseComponent: Capsule
+:CaseComponent: ForemanProxy
 
 :Team: Platform
 
-:TestType: Functional
-
 :CaseImportance: Critical
 
-:Upstream: No
 """
+
 from fauxfactory import gen_string, gen_url
 import pytest
 from requests import HTTPError
@@ -26,7 +22,7 @@ from robottelo.config import user_nailgun_config
 @pytest.mark.e2e
 @pytest.mark.upgrade
 @pytest.mark.tier1
-def test_positive_update_capsule(target_sat, module_capsule_configured):
+def test_positive_update_capsule(request, pytestconfig, target_sat, module_capsule_configured):
     """Update various capsule properties
 
     :id: a3d3eaa9-ed8d-42e6-9c83-20251e5ca9af
@@ -43,16 +39,16 @@ def test_positive_update_capsule(target_sat, module_capsule_configured):
     :bz: 2077824
 
     :customerscenario: true
-
     """
-    new_name = f'{gen_string("alpha")}-{module_capsule_configured.name}'
+    new_name = f'{gen_string("alpha")}-{module_capsule_configured.hostname}'
     capsule = target_sat.api.SmartProxy().search(
         query={'search': f'name = {module_capsule_configured.hostname}'}
     )[0]
 
     # refresh features
     features = capsule.refresh()
-    module_capsule_configured.run_installer_arg('enable-foreman-proxy-plugin-openscap')
+    result = module_capsule_configured.install(cmd_args=['enable-foreman-proxy-plugin-openscap'])
+    assert result.status == 0, 'Installer failed when enabling OpenSCAP plugin.'
     features_new = capsule.refresh()
     assert len(features_new["features"]) == len(features["features"]) + 1
     assert 'Openscap' in [feature["name"] for feature in features_new["features"]]
@@ -74,6 +70,17 @@ def test_positive_update_capsule(target_sat, module_capsule_configured):
     capsule = capsule.update(['name'])
     assert capsule.name == new_name
 
+    @request.addfinalizer
+    def _finalize():
+        # Updating the hostname back
+        if (
+            cap := target_sat.api.SmartProxy().search(query={'search': f'name = {new_name}'})
+            and pytestconfig.option.n_minus
+        ):
+            cap = cap[0]
+            cap.name = module_capsule_configured.hostname
+            cap.update(['name'])
+
     # serching for non-default capsule BZ#2077824
     capsules = target_sat.api.SmartProxy().search(query={'search': 'id != 1'})
     assert len(capsules) > 0
@@ -89,7 +96,6 @@ def test_negative_create_with_url(target_sat):
     :id: e48a6260-97e0-4234-a69c-77bbbcde85d6
 
     :expectedresults: Proxy is not created
-
     """
     # Create a random proxy
     with pytest.raises(HTTPError) as context:
@@ -125,7 +131,6 @@ def test_positive_update_url(request, target_sat):
     :id: 0305fd54-4e0c-4dd9-a537-d342c3dc867e
 
     :expectedresults: Capsule has the url updated
-
     """
     # Create fake capsule with name
     name = gen_string('alpha')
@@ -158,8 +163,6 @@ def test_positive_import_puppet_classes(
     :expectedresults: Puppet classes are imported from proxy
 
     :CaseComponent: Puppet
-
-    :CaseLevel: Integration
 
     :BZ: 1398695, 2142555
 

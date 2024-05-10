@@ -20,6 +20,7 @@ Subcommands::
     remove-operatingsystem        Disassociate an operating system
     update                        Update a provisioning template
 """
+
 from robottelo.cli.base import Base
 
 
@@ -46,18 +47,14 @@ class Template(Base):
         """Adds operating system, requires "id" and "operatingsystem-id"."""
         cls.command_sub = 'add-operatingsystem'
 
-        result = cls.execute(cls._construct_command(options), output_format='csv')
-
-        return result
+        return cls.execute(cls._construct_command(options), output_format='csv')
 
     @classmethod
     def remove_operatingsystem(cls, options=None):
         """Remove operating system, requires "id" and "operatingsystem-id"."""
         cls.command_sub = 'remove-operatingsystem'
 
-        result = cls.execute(cls._construct_command(options), output_format='csv')
-
-        return result
+        return cls.execute(cls._construct_command(options), output_format='csv')
 
     @classmethod
     def clone(cls, options=None):

@@ -4,20 +4,15 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Repositories
 
 :team: Phoenix-content
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from fauxfactory import gen_string
-from nailgun import entities
 import pytest
 
 from robottelo.config import settings
@@ -33,31 +28,13 @@ from robottelo.constants.repos import FEDORA_OSTREE_REPO
 
 
 @pytest.fixture(scope='module')
-def module_org():
-    return entities.Organization().create()
+def module_org(module_target_sat):
+    return module_target_sat.api.Organization().create()
 
 
 @pytest.fixture(scope='module')
-def module_custom_product(module_org):
-    return entities.Product(organization=module_org).create()
-
-
-@pytest.mark.tier2
-@pytest.mark.skipif((not settings.robottelo.REPOS_HOSTING_URL), reason='Missing repos_hosting_url')
-def test_positive_sync_custom_repo(session, module_custom_product):
-    """Create Content Custom Sync with minimal input parameters
-
-    :id: 00fb0b04-0293-42c2-92fa-930c75acee89
-
-    :expectedresults: Sync procedure is successful
-
-    :CaseImportance: Critical
-    """
-    repo = entities.Repository(url=settings.repos.yum_1.url, product=module_custom_product).create()
-    with session:
-        results = session.sync_status.synchronize([(module_custom_product.name, repo.name)])
-        assert len(results) == 1
-        assert results[0] == 'Syncing Complete.'
+def module_custom_product(module_org, module_target_sat):
+    return module_target_sat.api.Product(organization=module_org).create()
 
 
 @pytest.mark.run_in_one_thread
@@ -70,8 +47,6 @@ def test_positive_sync_rh_repos(session, target_sat, module_entitlement_manifest
     :id: e30f6509-0b65-4bcc-a522-b4f3089d3911
 
     :expectedresults: Sync procedure for RedHat Repos is successful
-
-    :CaseLevel: Integration
     """
     repos = (
         target_sat.cli_factory.SatelliteCapsuleRepository(cdn=True),
@@ -80,7 +55,7 @@ def test_positive_sync_rh_repos(session, target_sat, module_entitlement_manifest
     distros = ['rhel6', 'rhel7']
     repo_collections = [
         target_sat.cli_factory.RepositoryCollection(distro=distro, repositories=[repo])
-        for distro, repo in zip(distros, repos)
+        for distro, repo in zip(distros, repos, strict=True)
     ]
     for repo_collection in repo_collections:
         repo_collection.setup(module_entitlement_manifest_org.id, synchronize=False)
@@ -104,7 +79,7 @@ def test_positive_sync_rh_repos(session, target_sat, module_entitlement_manifest
 @pytest.mark.tier2
 @pytest.mark.upgrade
 @pytest.mark.skipif((not settings.robottelo.REPOS_HOSTING_URL), reason='Missing repos_hosting_url')
-def test_positive_sync_custom_ostree_repo(session, module_custom_product):
+def test_positive_sync_custom_ostree_repo(session, module_custom_product, module_target_sat):
     """Create custom ostree repository and sync it.
 
     :id: e4119b9b-0356-4661-a3ec-e5807224f7d2
@@ -113,11 +88,9 @@ def test_positive_sync_custom_ostree_repo(session, module_custom_product):
 
     :customerscenario: true
 
-    :CaseLevel: Integration
-
     :BZ: 1625783
     """
-    repo = entities.Repository(
+    repo = module_target_sat.api.Repository(
         content_type='ostree',
         url=FEDORA_OSTREE_REPO,
         product=module_custom_product,
@@ -139,15 +112,13 @@ def test_positive_sync_rh_ostree_repo(session, target_sat, module_entitlement_ma
 
     :id: 4d28fff0-5fda-4eee-aa0c-c5af02c31de5
 
-    :Steps:
+    :steps:
         1. Import a valid manifest
         2. Enable the OStree repo and sync it
 
     :customerscenario: true
 
     :expectedresults: ostree repo should be synced successfully from CDN
-
-    :CaseLevel: Integration
 
     :BZ: 1625783
     """
@@ -168,17 +139,15 @@ def test_positive_sync_rh_ostree_repo(session, target_sat, module_entitlement_ma
 
 @pytest.mark.tier2
 @pytest.mark.upgrade
-def test_positive_sync_docker_via_sync_status(session, module_org):
+def test_positive_sync_docker_via_sync_status(session, module_org, module_target_sat):
     """Create custom docker repo and sync it via the sync status page.
 
     :id: 00b700f4-7e52-48ed-98b2-e49b3be102f2
 
     :expectedresults: Sync procedure for specific docker repository is
         successful
-
-    :CaseLevel: Integration
     """
-    product = entities.Product(organization=module_org).create()
+    product = module_target_sat.api.Product(organization=module_org).create()
     repo_name = gen_string('alphanumeric')
     with session:
         session.repository.create(

@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Virt-whoConfigurePlugin
 
 :team: Phoenix-subscriptions
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import pytest
 
 from robottelo.config import settings
@@ -43,8 +39,6 @@ class TestVirtWhoConfigforNutanix:
         :expectedresults:
             1. Config can be created and deployed
             2. Config can be created, fetch and deploy
-
-        :CaseLevel: Integration
 
         :CaseImportance: High
         """
@@ -84,8 +78,6 @@ class TestVirtWhoConfigforNutanix:
 
         :expectedresults: hypervisor_id option can be updated.
 
-        :CaseLevel: Integration
-
         :CaseImportance: Medium
         """
         values = ['uuid', 'hostname']
@@ -114,8 +106,6 @@ class TestVirtWhoConfigforNutanix:
         :expectedresults:
             Config can be created and deployed
             The prism_central has been set in /etc/virt-who.d/vir-who.conf file
-
-        :CaseLevel: Integration
 
         :CaseImportance: High
         """
@@ -171,8 +161,6 @@ class TestVirtWhoConfigforNutanix:
 
         :expectedresults: prism_central option can be updated.
 
-        :CaseLevel: Integration
-
         :CaseImportance: Medium
         """
         value = 'central'
@@ -207,11 +195,11 @@ class TestVirtWhoConfigforNutanix:
             5. message Host UUID {system_uuid} found for VM: {guest_uuid} exist in rhsm.log
             6. ahv_internal_debug bas been set to true in virt-who-config-X.conf
             7. warning message does not exist in log file /var/log/rhsm/rhsm.log
-        :CaseLevel: Integration
 
         :CaseImportance: Medium
 
         :BZ: 2141719
+
         :customerscenario: true
         """
         command = get_configure_command(virtwho_config_cli['id'], default_org.name)

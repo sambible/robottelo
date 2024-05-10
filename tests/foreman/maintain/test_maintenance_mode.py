@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
-:CaseComponent: ForemanMaintain
+:CaseComponent: SatelliteMaintain
 
 :Team: Platform
 
-:TestType: Functional
-
 :CaseImportance: Critical
 
-:Upstream: No
 """
+
 import pytest
 import yaml
 
@@ -52,6 +48,11 @@ def test_positive_maintenance_mode(request, sat_maintain, setup_sync_plan):
         to disable/enable sync-plan, stop/start crond.service and is able to add
         FOREMAN_MAINTAIN_TABLE rule in nftables.
     """
+
+    @request.addfinalizer
+    def _finalize():
+        assert sat_maintain.cli.MaintenanceMode.stop().status == 0
+
     enable_sync_ids = setup_sync_plan
     data_yml_path = '/var/lib/foreman-maintain/data.yml'
     local_data_yml_path = f'{robottelo_tmp_dir}/data.yml'
@@ -147,7 +148,3 @@ def test_positive_maintenance_mode(request, sat_maintain, setup_sync_plan):
     assert 'OK' in result.stdout
     assert result.status == 1
     assert 'Maintenance mode is Off' in result.stdout
-
-    @request.addfinalizer
-    def _finalize():
-        assert sat_maintain.cli.MaintenanceMode.stop().status == 0

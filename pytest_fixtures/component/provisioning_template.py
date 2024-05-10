@@ -17,8 +17,7 @@ def module_provisioningtemplate_default(module_org, module_location):
     provisioning_template.organization.append(module_org)
     provisioning_template.location.append(module_location)
     provisioning_template.update(['organization', 'location'])
-    provisioning_template = entities.ProvisioningTemplate(id=provisioning_template.id).read()
-    return provisioning_template
+    return entities.ProvisioningTemplate(id=provisioning_template.id).read()
 
 
 @pytest.fixture(scope='module')
@@ -30,8 +29,7 @@ def module_provisioningtemplate_pxe(module_org, module_location):
     pxe_template.organization.append(module_org)
     pxe_template.location.append(module_location)
     pxe_template.update(['organization', 'location'])
-    pxe_template = entities.ProvisioningTemplate(id=pxe_template.id).read()
-    return pxe_template
+    return entities.ProvisioningTemplate(id=pxe_template.id).read()
 
 
 @pytest.fixture(scope='session')
@@ -39,6 +37,7 @@ def default_partitiontable():
     ptables = entities.PartitionTable().search(query={'search': f'name="{DEFAULT_PTABLE}"'})
     if ptables:
         return ptables[0].read()
+    return None
 
 
 @pytest.fixture(scope='module')
@@ -62,7 +61,7 @@ def module_sync_kickstart_content(
     """
     repo_names = []
     tasks = []
-    rhel_ver = request.param
+    rhel_ver = request.param['rhel_version']
     if int(rhel_ver) <= 7:
         repo_names.append(f'rhel{rhel_ver}')
     else:

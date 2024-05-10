@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Authentication
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import random
 
 from fauxfactory import gen_string
@@ -37,7 +33,7 @@ def test_negative_create_name_only(module_target_sat):
 
 
 @pytest.mark.tier1
-def test_negative_create_invalid_id(module_target_sat):
+def test_negative_create_invalid_proxy_id(module_target_sat):
     """Create a realm with an invalid proxy ID
 
     :id: 916bd1fb-4649-469c-b511-b0b07301a990

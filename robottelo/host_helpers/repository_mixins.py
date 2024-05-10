@@ -2,6 +2,7 @@
 All the Repository classes in this module are supposed to use from sat_object.cli_factory object.
 The direct import of the repo classes in this module is prohibited !!!!!
 """
+
 import inspect
 import sys
 
@@ -388,8 +389,7 @@ class GenericRHRepository(BaseRepository):
                 f'<RH cdn Repo: {self.data["repository"]} within distro: '
                 f'{self.distro}, object: {hex(id(self))}>'
             )
-        else:
-            return f'<RH custom Repo url: {self.url} object: {hex(id(self))}>'
+        return f'<RH custom Repo url: {self.url} object: {hex(id(self))}>'
 
     def create(
         self,
@@ -510,7 +510,6 @@ class RepositoryCollection:
     satellite = None
 
     def __init__(self, distro=None, repositories=None):
-
         self._items = []
 
         if distro is not None and distro not in constants.DISTROS_SUPPORTED:
@@ -826,7 +825,7 @@ class RepositoryCollection:
             patch_os_release_distro = self.os_repo.distro
         rh_repo_ids = []
         if enable_rh_repos:
-            rh_repo_ids = [getattr(repo, 'rh_repository_id') for repo in self.rh_repos]
+            rh_repo_ids = [repo.rh_repository_id for repo in self.rh_repos]
         repo_labels = []
         if enable_custom_repos:
             repo_labels = [

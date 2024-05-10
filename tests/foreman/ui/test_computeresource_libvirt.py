@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: ComputeResources-libvirt
 
 :Team: Rocket
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from random import choice
 
 from fauxfactory import gen_string
@@ -43,8 +39,6 @@ def test_positive_end_to_end(session, module_target_sat, module_org, module_loca
     :id: 7ef925ac-5aec-4e9d-b786-328a9b219c01
 
     :expectedresults: All expected CRUD actions finished successfully.
-
-    :CaseLevel: Integration
 
     :CaseImportance: High
 
@@ -144,8 +138,6 @@ def test_positive_provision_end_to_end(
 
     :expectedresults: Host is provisioned successfully
 
-    :CaseLevel: System
-
     :customerscenario: true
 
     :BZ: 1243223, 2236693
@@ -180,14 +172,8 @@ def test_positive_provision_end_to_end(
             }
         )
         name = f'{hostname}.{module_libvirt_provisioning_sat.domain.name}'
+        request.addfinalizer(lambda: sat.provisioning_cleanup(name))
         assert session.host.search(name)[0]['Name'] == name
-
-        # teardown
-        @request.addfinalizer
-        def _finalize():
-            host = sat.api.Host().search(query={'search': f'name="{name}"'})
-            if host:
-                host[0].delete()
 
         # Check on Libvirt, if VM exists
         result = sat.execute(

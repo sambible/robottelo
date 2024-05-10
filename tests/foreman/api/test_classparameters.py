@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: Puppet
 
 :CaseImportance: Medium
 
 :Team: Rocket
 
-:TestType: Functional
-
-:Upstream: No
 """
+
 import json
 from random import choice
 

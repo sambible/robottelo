@@ -4,54 +4,47 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Search
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
-from airgun.exceptions import NoSuchElementException
-from airgun.session import Session
+
+from airgun.exceptions import DisabledWidgetError, NoSuchElementException
 from fauxfactory import gen_string
-from nailgun import entities
 import pytest
 
 from robottelo.config import user_nailgun_config
-from robottelo.constants import BOOKMARK_ENTITIES
-from robottelo.utils.issue_handlers import is_open
+from robottelo.constants import BOOKMARK_ENTITIES_SELECTION
 
 
 @pytest.fixture(
-    scope='module', params=BOOKMARK_ENTITIES, ids=(i['name'] for i in BOOKMARK_ENTITIES)
+    scope='module',
+    params=BOOKMARK_ENTITIES_SELECTION,
+    ids=(i['name'] for i in BOOKMARK_ENTITIES_SELECTION),
 )
 def ui_entity(module_org, module_location, request):
     """Collects the list of all applicable UI entities for testing and does all
     required preconditions.
     """
     entity = request.param
+    entity_name, entity_setup = entity['name'], entity.get('setup')
+    # Skip the entities, which can't be tested ATM (not implemented in
+    # airgun)
+    skip = entity.get('skip_for_ui')
+    if skip:
+        pytest.skip(f'{entity_name} not implemented in airgun')
     # Some pages require at least 1 existing entity for search bar to
     # appear. Creating 1 entity for such pages
-    entity_name, entity_setup = entity['name'], entity.get('setup')
     if entity_setup:
-        # Skip the entities, which can't be tested ATM (not implemented in
-        # airgun or have open BZs)
-        skip = entity.get('skip_for_ui')
-        if isinstance(skip, tuple | list):
-            open_issues = {issue for issue in skip if is_open(issue)}
-            pytest.skip(f'There is/are an open issue(s) {open_issues} with entity {entity_name}')
         # entities with 1 organization and location
         if entity_name in ('Host',):
             entity_setup(organization=module_org, location=module_location).create()
         # entities with no organizations and locations
         elif entity_name in (
             'ComputeProfile',
-            'GlobalParameter',
             'HardwareModel',
             'UserGroup',
         ):
@@ -70,8 +63,6 @@ def test_positive_end_to_end(session, ui_entity):
     :id: 13e89c36-6332-451e-a4b5-2ab46346211f
 
     :expectedresults: All expected CRUD actions finished successfully
-
-    :CaseLevel: Integration
 
     :CaseImportance: High
     """
@@ -98,14 +89,16 @@ def test_positive_end_to_end(session, ui_entity):
 
 
 @pytest.mark.tier2
-def test_positive_create_bookmark_public(session, ui_entity, default_viewer_role, test_name):
+def test_positive_create_bookmark_public(
+    session, ui_entity, default_viewer_role, test_name, module_target_sat
+):
     """Create and check visibility of the (non)public bookmarks
 
     :id: 93139529-7690-429b-83fe-3dcbac4f91dc
 
     :Setup: Create a non-admin user with 'viewer' role
 
-    :Steps:
+    :steps:
 
         1. Navigate to the entity page
         2. Choose "bookmark this search" from the search drop-down menu
@@ -120,19 +113,19 @@ def test_positive_create_bookmark_public(session, ui_entity, default_viewer_role
 
     :expectedresults: No errors, public bookmarks is displayed for all users,
         non-public bookmark is displayed for creator but not for different user
-
-    :CaseLevel: Integration
     """
     public_name = gen_string('alphanumeric')
     nonpublic_name = gen_string('alphanumeric')
     with session:
-        ui_lib = getattr(session, ui_entity['name'].lower())
+        ui_lib = getattr(session, ui_entity['session_name'])
         for name in (public_name, nonpublic_name):
             ui_lib.create_bookmark(
                 {'name': name, 'query': gen_string('alphanumeric'), 'public': name == public_name}
             )
             assert any(d['Name'] == name for d in session.bookmark.search(name))
-    with Session(test_name, default_viewer_role.login, default_viewer_role.password) as session:
+    with module_target_sat.ui_session(
+        test_name, default_viewer_role.login, default_viewer_role.password
+    ) as session:
         assert any(d['Name'] == public_name for d in session.bookmark.search(public_name))
         assert not session.bookmark.search(nonpublic_name)
 
@@ -151,7 +144,7 @@ def test_positive_update_bookmark_public(
            public and one private
         2. Create a non-admin user with 'viewer' role
 
-    :Steps:
+    :steps:
 
         1. Login to Satellite server (establish a UI session) as the
            pre-created user
@@ -177,8 +170,6 @@ def test_positive_update_bookmark_public(
     :expectedresults: New public bookmark is listed, and the private one is
         hidden
 
-    :CaseLevel: Integration
-
     :BZ: 2141187
 
     :customerscenario: true
@@ -193,7 +184,7 @@ def test_positive_update_bookmark_public(
             controller=ui_entity['controller'],
             public=name == public_name,
         ).create()
-    with Session(
+    with target_sat.ui_session(
         test_name, default_viewer_role.login, default_viewer_role.password
     ) as non_admin_session:
         assert any(d['Name'] == public_name for d in non_admin_session.bookmark.search(public_name))
@@ -201,7 +192,7 @@ def test_positive_update_bookmark_public(
     with session:
         session.bookmark.update(public_name, {'public': False})
         session.bookmark.update(nonpublic_name, {'public': True})
-    with Session(
+    with target_sat.ui_session(
         test_name, default_viewer_role.login, default_viewer_role.password
     ) as non_admin_session:
         assert any(
@@ -211,7 +202,7 @@ def test_positive_update_bookmark_public(
 
 
 @pytest.mark.tier2
-def test_negative_delete_bookmark(ui_entity, default_viewer_role, test_name):
+def test_negative_delete_bookmark(ui_entity, default_viewer_role, test_name, module_target_sat):
     """Simple removal of a bookmark query without permissions
 
     :id: 1a94bf2b-bcc6-4663-b70d-e13244a0783b
@@ -222,18 +213,18 @@ def test_negative_delete_bookmark(ui_entity, default_viewer_role, test_name):
         2. Create a non-admin user without destroy_bookmark role (e.g.
            viewer)
 
-    :Steps:
+    :steps:
 
         1. Login to Satellite server (establish a UI session) as a
            non-admin user
         2. List the bookmarks (Navigate to Administer -> Bookmarks)
 
     :expectedresults: The delete buttons are not displayed
-
-    :CaseLevel: Integration
     """
-    bookmark = entities.Bookmark(controller=ui_entity['controller'], public=True).create()
-    with Session(
+    bookmark = module_target_sat.api.Bookmark(
+        controller=ui_entity['controller'], public=True
+    ).create()
+    with module_target_sat.ui_session(
         test_name, default_viewer_role.login, default_viewer_role.password
     ) as non_admin_session:
         assert non_admin_session.bookmark.search(bookmark.name)[0]['Name'] == bookmark.name
@@ -243,7 +234,7 @@ def test_negative_delete_bookmark(ui_entity, default_viewer_role, test_name):
 
 
 @pytest.mark.tier2
-def test_negative_create_with_duplicate_name(session, ui_entity):
+def test_negative_create_with_duplicate_name(session, ui_entity, module_target_sat):
     """Create bookmark with duplicate name
 
     :id: 18168c9c-bdd1-4839-a506-cf9b06c4ab44
@@ -252,24 +243,30 @@ def test_negative_create_with_duplicate_name(session, ui_entity):
 
         1. Create a bookmark of a random name with random query.
 
-    :Steps:
+    :steps:
 
         1. Create new bookmark with duplicate name.
 
     :expectedresults: Bookmark can't be created, submit button is disabled
 
     :BZ: 1920566, 1992652
-
-    :CaseLevel: Integration
     """
     query = gen_string('alphanumeric')
-    bookmark = entities.Bookmark(controller=ui_entity['controller'], public=True).create()
+    bookmark = module_target_sat.api.Bookmark(
+        controller=ui_entity['controller'], public=True
+    ).create()
     with session:
         existing_bookmark = session.bookmark.search(bookmark.name)[0]
         assert existing_bookmark['Name'] == bookmark.name
         ui_lib = getattr(session, ui_entity['name'].lower())
-        # this fails but does not raise UI error, BZ#1992652 closed wontfix
-        ui_lib.create_bookmark({'name': bookmark.name, 'query': query, 'public': True})
+        # this fails but does not raise UI error in old style dialog, BZ#1992652 closed
+        # wontfix, but new style dialog raises error, both situations occur
+        old_ui = ui_entity.get('old_ui')
+        if old_ui:
+            ui_lib.create_bookmark({'name': bookmark.name, 'query': query, 'public': True})
+        else:
+            with pytest.raises((DisabledWidgetError, NoSuchElementException)):
+                ui_lib.create_bookmark({'name': bookmark.name, 'query': query, 'public': True})
         # assert there are no duplicate bookmarks
         new_search = session.bookmark.search(bookmark.name)
         assert len(new_search) == 1

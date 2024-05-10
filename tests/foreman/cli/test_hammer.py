@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: Hammer
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: Critical
 
-:Upstream: No
 """
+
 import io
 import json
 import re
@@ -141,6 +137,13 @@ def test_positive_disable_hammer_defaults(request, function_product, target_sat)
 
     :BZ: 1640644, 1368173
     """
+
+    @request.addfinalizer
+    def _finalize():
+        target_sat.cli.Defaults.delete({'param-name': 'organization_id'})
+        result = target_sat.execute('hammer defaults list')
+        assert str(function_product.organization.id) not in result.stdout
+
     target_sat.cli.Defaults.add(
         {'param-name': 'organization_id', 'param-value': function_product.organization.id}
     )
@@ -158,12 +161,6 @@ def test_positive_disable_hammer_defaults(request, function_product, target_sat)
     result = target_sat.execute('hammer --use-defaults product list')
     assert result.status == 0
     assert function_product.name in result.stdout
-
-    @request.addfinalizer
-    def _finalize():
-        target_sat.cli.Defaults.delete({'param-name': 'organization_id'})
-        result = target_sat.execute('hammer defaults list')
-        assert str(function_product.organization.id) not in result.stdout
 
 
 @pytest.mark.upgrade

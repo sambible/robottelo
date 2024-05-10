@@ -4,16 +4,12 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Virt-whoConfigurePlugin
 
 :team: Phoenix-subscriptions
 
-:TestType: Functional
-
-:Upstream: No
 """
+
 import pytest
 
 from robottelo.utils.virtwho import (
@@ -42,8 +38,6 @@ class TestVirtwhoConfigforKubevirt:
             4. Virtual sku can be generated and attached
             5. Config can be deleted
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
         """
         assert org_session.virtwho_configure.search(form_data_ui['name'])[0]['Status'] == 'ok'
@@ -59,8 +53,6 @@ class TestVirtwhoConfigforKubevirt:
         :expectedresults:
             1. hypervisor_id can be changed in virt-who-config-{}.conf if the
             dropdown option is selected to uuid/hwuuid/hostname.
-
-        :CaseLevel: Integration
 
         :CaseImportance: Medium
         """

@@ -2,20 +2,16 @@
 
 :Requirement: Provisioning
 
-:CaseAutomation: NotAutomated
-
-:CaseLevel: System
+:CaseAutomation: Automated
 
 :CaseComponent: Provisioning
 
 :Team: Rocket
 
-:TestType: Functional
-
 :CaseImportance: Critical
 
-:Upstream: No
 """
+
 import re
 
 from fauxfactory import gen_string
@@ -60,8 +56,8 @@ def assert_host_logs(channel, pattern):
     try:
         log = _wait_for_log(channel, pattern, timeout=300, delay=10)
         assert pattern in log
-    except TimedOutError:
-        raise AssertionError(f'Timed out waiting for {pattern} from VM')
+    except TimedOutError as err:
+        raise AssertionError(f'Timed out waiting for {pattern} from VM') from err
 
 
 @pytest.mark.e2e
@@ -118,7 +114,8 @@ def test_rhel_pxe_provisioning(
     ).create(create_missing=False)
     # Clean up the host to free IP leases on Satellite.
     # broker should do that as a part of the teardown, putting here just to make sure.
-    request.addfinalizer(host.delete)
+    request.addfinalizer(lambda: sat.provisioning_cleanup(host.name))
+
     # Start the VM, do not ensure that we can connect to SSHD
     provisioning_host.power_control(ensure=False)
 
@@ -256,7 +253,8 @@ def test_rhel_ipxe_provisioning(
     ).create(create_missing=False)
     # Clean up the host to free IP leases on Satellite.
     # broker should do that as a part of the teardown, putting here just to make sure.
-    request.addfinalizer(host.delete)
+    request.addfinalizer(lambda: sat.provisioning_cleanup(host.name))
+
     # Start the VM, do not ensure that we can connect to SSHD
     provisioning_host.power_control(ensure=False)
 
@@ -383,7 +381,8 @@ def test_rhel_httpboot_provisioning(
     ).create(create_missing=False)
     # Clean up the host to free IP leases on Satellite.
     # broker should do that as a part of the teardown, putting here just to make sure.
-    request.addfinalizer(host.delete)
+    request.addfinalizer(lambda: sat.provisioning_cleanup(host.name))
+
     # Start the VM, do not ensure that we can connect to SSHD
     provisioning_host.power_control(ensure=False)
     # check for proper HTTP requests
@@ -512,7 +511,7 @@ def test_rhel_pxe_provisioning_fips_enabled(
     ).create(create_missing=False)
     # Clean up the host to free IP leases on Satellite.
     # broker should do that as a part of the teardown, putting here just to make sure.
-    request.addfinalizer(host.delete)
+    request.addfinalizer(lambda: sat.provisioning_cleanup(host.name))
     # Start the VM, do not ensure that we can connect to SSHD
     provisioning_host.power_control(ensure=False)
 
@@ -592,6 +591,8 @@ def test_rhel_pxe_provisioning_fips_enabled(
 
 @pytest.mark.e2e
 @pytest.mark.parametrize('pxe_loader', ['bios', 'uefi'], indirect=True)
+@pytest.mark.skip(reason='Skipping till we have destructive support')
+@pytest.mark.on_premises_provisioning
 @pytest.mark.rhel_ver_match('[^6]')
 def test_capsule_pxe_provisioning(
     request,
@@ -650,7 +651,7 @@ def test_capsule_pxe_provisioning(
     ).create(create_missing=False)
     # Clean up the host to free IP leases on Satellite.
     # broker should do that as a part of the teardown, putting here just to make sure.
-    request.addfinalizer(host.delete)
+    request.addfinalizer(lambda: sat.provisioning_cleanup(host.name))
     # Start the VM, do not ensure that we can connect to SSHD
     provisioning_host.power_control(ensure=False)
     # Host should do call back to the Satellite reporting
@@ -733,4 +734,6 @@ def test_rhel_provisioning_using_realm():
         3. Host installs right version of RHEL
         4. Satellite is able to run REX job on the host
         5. Host is registered to Satellite and subscription status is 'Success'
+
+    :CaseAutomation: NotAutomated
     """

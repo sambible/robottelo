@@ -4,19 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: System
-
-:CaseComponent: Certificates
+:CaseComponent: Installation
 
 :Team: Platform
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
-
 """
+
 import re
 
 import pytest
@@ -60,7 +55,7 @@ def test_positive_update_katello_certs(cert_setup_destructive_teardown):
         # assert no hammer ping SSL cert error
         result = satellite.execute('hammer ping')
         assert 'SSL certificate verification failed' not in result.stdout
-        assert result.stdout.count('ok') == 8
+        assert result.stdout.count('ok') == 9
         # assert all services are running
         result = satellite.execute('satellite-maintain health check --label services-up -y')
         assert result.status == 0, 'Not all services are running'
@@ -103,7 +98,7 @@ def test_regeneration_ssl_build_certs(target_sat):
     # assert no hammer ping SSL cert error
     result = target_sat.execute('hammer ping')
     assert 'SSL certificate verification failed' not in result.stdout
-    assert result.stdout.count('ok') == 8
+    assert result.stdout.count('ok') == 9
     # assert all services are running
     result = target_sat.execute('satellite-maintain health check --label services-up -y')
     assert result.status == 0, 'Not all services are running'

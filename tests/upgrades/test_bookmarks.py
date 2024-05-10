@@ -4,21 +4,17 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Search
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import pytest
 
-from robottelo.constants import BOOKMARK_ENTITIES
+from robottelo.constants import BOOKMARK_ENTITIES_SELECTION
 
 
 class TestPublicDisableBookmark:
@@ -34,7 +30,7 @@ class TestPublicDisableBookmark:
 
         :id: preupgrade-13904b14-6340-4b85-a56f-98080cf50a92
 
-        :Steps:
+        :steps:
 
             1. Create public disabled bookmarks before the upgrade for all system entities
             using available bookmark data.
@@ -50,7 +46,7 @@ class TestPublicDisableBookmark:
         :CaseImportance: Critical
         """
 
-        for entity in BOOKMARK_ENTITIES:
+        for entity in BOOKMARK_ENTITIES_SELECTION:
             book_mark_name = entity["name"] + request.node.name
             bm = target_sat.api.Bookmark(
                 controller=entity['controller'],
@@ -71,7 +67,7 @@ class TestPublicDisableBookmark:
 
         :id: postupgrade-13904b14-6340-4b85-a56f-98080cf50a92
 
-        :Steps:
+        :steps:
 
             1. Check the bookmark status after post-upgrade.
             2. Remove the bookmark.
@@ -82,7 +78,7 @@ class TestPublicDisableBookmark:
         :CaseImportance: Critical
         """
         pre_test_name = dependent_scenario_name
-        for entity in BOOKMARK_ENTITIES:
+        for entity in BOOKMARK_ENTITIES_SELECTION:
             book_mark_name = entity["name"] + pre_test_name
             bm = target_sat.api.Bookmark().search(query={'search': f'name="{book_mark_name}"'})[0]
             assert bm.controller == entity['controller']
@@ -105,7 +101,7 @@ class TestPublicEnableBookmark:
 
         :id: preupgrade-93c419db-66b4-4c9a-a82a-a6a68703881f
 
-        :Steps:
+        :steps:
             1. Create public enable bookmarks before the upgrade for all system entities
             using available bookmark data.
             2. Check the bookmark attribute(controller, name, query public) status
@@ -120,7 +116,7 @@ class TestPublicEnableBookmark:
         :customerscenario: true
         """
 
-        for entity in BOOKMARK_ENTITIES:
+        for entity in BOOKMARK_ENTITIES_SELECTION:
             book_mark_name = entity["name"] + request.node.name
             bm = target_sat.api.Bookmark(
                 controller=entity['controller'],
@@ -140,7 +136,7 @@ class TestPublicEnableBookmark:
 
         :id: postupgrade-93c419db-66b4-4c9a-a82a-a6a68703881f
 
-        :Steps:
+        :steps:
             1. Check the bookmark status after post-upgrade.
             2. Remove the bookmark.
 
@@ -150,7 +146,7 @@ class TestPublicEnableBookmark:
         :CaseImportance: Critical
         """
         pre_test_name = dependent_scenario_name
-        for entity in BOOKMARK_ENTITIES:
+        for entity in BOOKMARK_ENTITIES_SELECTION:
             book_mark_name = entity["name"] + pre_test_name
             bm = target_sat.api.Bookmark().search(query={'search': f'name="{book_mark_name}"'})[0]
             assert bm.controller == entity['controller']

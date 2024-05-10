@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: ContentViews
 
 :team: Phoenix-content
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import random
 
 from fauxfactory import gen_string
@@ -592,8 +588,6 @@ class TestContentViewFilter:
         :expectedresults: Content view filter updated successfully and has
             proper and expected name
 
-        :CaseLevel: Integration
-
         :CaseImportance: Critical
         """
         cvf_name = gen_string('utf8')
@@ -629,8 +623,6 @@ class TestContentViewFilter:
 
         :expectedresults: Content view filter updated successfully and has new
             repository affected
-
-        :CaseLevel: Integration
 
         :CaseImportance: Critical
         """
@@ -686,7 +678,6 @@ class TestContentViewFilter:
         :expectedresults: Content view filter updated successfully and has new
             repository affected
 
-        :CaseLevel: Integration
         """
         cvf_name = gen_string('utf8')
         module_target_sat.cli.ContentView.filter.create(
@@ -739,7 +730,6 @@ class TestContentViewFilter:
         :expectedresults: Content view filter updated successfully and has
             correct and expected value for inclusion parameter
 
-        :CaseLevel: Integration
         """
         cvf_name = gen_string('utf8')
         module_target_sat.cli.ContentView.filter.create(

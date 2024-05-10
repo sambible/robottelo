@@ -4,20 +4,15 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: Repositories
 
 :team: Phoenix-content
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from fauxfactory import gen_string
-from nailgun import entities
 import pytest
 
 from robottelo.config import settings
@@ -25,18 +20,18 @@ from robottelo.constants import RPM_TO_UPLOAD, DataFile
 
 
 @pytest.fixture(scope='module')
-def module_org():
-    return entities.Organization().create()
+def module_org(module_target_sat):
+    return module_target_sat.api.Organization().create()
 
 
 @pytest.fixture(scope='module')
-def module_product(module_org):
-    return entities.Product(organization=module_org).create()
+def module_product(module_org, module_target_sat):
+    return module_target_sat.api.Product(organization=module_org).create()
 
 
 @pytest.fixture(scope='module')
-def module_yum_repo(module_product):
-    yum_repo = entities.Repository(
+def module_yum_repo(module_product, module_target_sat):
+    yum_repo = module_target_sat.api.Repository(
         name=gen_string('alpha'),
         product=module_product,
         content_type='yum',
@@ -47,8 +42,8 @@ def module_yum_repo(module_product):
 
 
 @pytest.fixture(scope='module')
-def module_yum_repo2(module_product):
-    yum_repo = entities.Repository(
+def module_yum_repo2(module_product, module_target_sat):
+    yum_repo = module_target_sat.api.Repository(
         name=gen_string('alpha'),
         product=module_product,
         content_type='yum',
@@ -69,8 +64,8 @@ def module_rh_repo(module_entitlement_manifest_org, module_target_sat):
         reposet=rhst.data['repository-set'],
         releasever=rhst.data['releasever'],
     )
-    entities.Repository(id=repo_id).sync()
-    return entities.Repository(id=repo_id).read()
+    module_target_sat.api.Repository(id=repo_id).sync()
+    return module_target_sat.api.Repository(id=repo_id).read()
 
 
 @pytest.mark.tier2
@@ -82,8 +77,6 @@ def test_positive_search_in_repo(session, module_org, module_yum_repo):
 
     :expectedresults: Content search functionality works as intended and
         expected packages are present inside of repository
-
-    :CaseLevel: Integration
     """
     with session:
         session.organization.select(org_name=module_org.name)
@@ -108,8 +101,6 @@ def test_positive_search_in_multiple_repos(session, module_org, module_yum_repo,
         expected packages are present inside of repositories
 
     :BZ: 1514457
-
-    :CaseLevel: Integration
     """
     with session:
         session.organization.select(org_name=module_org.name)
@@ -138,8 +129,6 @@ def test_positive_check_package_details(session, module_org, module_yum_repo):
 
     :expectedresults: Package is present inside of repository and has all
         expected values in details section
-
-    :CaseLevel: Integration
 
     :customerscenario: true
     """
@@ -181,8 +170,6 @@ def test_positive_check_custom_package_details(session, module_org, module_yum_r
     :expectedresults: Package is present inside of repository and it
         possible to view its details
 
-    :CaseLevel: Integration
-
     :customerscenario: true
 
     :BZ: 1387766, 1394390
@@ -210,8 +197,6 @@ def test_positive_rh_repo_search_and_check_file_list(session, module_org, module
 
     :expectedresults: Content search functionality works as intended and
         package contains expected list of files
-
-    :CaseLevel: System
     """
     with session:
         session.organization.select(org_name=module_org.name)

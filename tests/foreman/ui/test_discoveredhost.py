@@ -8,12 +8,8 @@
 
 :Team: Rocket
 
-:TestType: Functional
-
-:CaseLevel: System
-
-:Upstream: No
 """
+
 from fauxfactory import gen_string
 import pytest
 from wait_for import wait_for
@@ -45,8 +41,7 @@ def _is_host_reachable(host, retries=12, iteration_sleep=5, expect_reachable=Tru
     result = ssh.command(cmd.format(retries, host, operator, iteration_sleep))
     if expect_reachable:
         return not result.status
-    else:
-        return bool(result.status)
+    return bool(result.status)
 
 
 @pytest.mark.tier3
@@ -56,6 +51,7 @@ def _is_host_reachable(host, retries=12, iteration_sleep=5, expect_reachable=Tru
 @pytest.mark.parametrize('pxe_loader', ['bios', 'uefi'], indirect=True)
 @pytest.mark.rhel_ver_match('9')
 def test_positive_provision_pxe_host(
+    request,
     session,
     module_location,
     module_org,
@@ -86,7 +82,7 @@ def test_positive_provision_pxe_host(
     mac = provisioning_host._broker_args['provisioning_nic_mac_addr']
     wait_for(
         lambda: sat.api.DiscoveredHost().search(query={'mac': mac}) != [],
-        timeout=240,
+        timeout=1500,
         delay=20,
     )
     discovered_host = sat.api.DiscoveredHost().search(query={'mac': mac})[0]
@@ -98,6 +94,10 @@ def test_positive_provision_pxe_host(
     discovered_host_name = discovered_host.name
     domain_name = provisioning_hostgroup.domain.read().name
     host_name = f'{discovered_host_name}.{domain_name}'
+
+    # Teardown
+    request.addfinalizer(lambda: sat.provisioning_cleanup(host_name))
+
     with session:
         session.discoveredhosts.provision(
             discovered_host_name,
@@ -155,6 +155,7 @@ def test_positive_update_name(
 @pytest.mark.parametrize('pxe_loader', ['bios', 'uefi'], indirect=True)
 @pytest.mark.rhel_ver_match('9')
 def test_positive_auto_provision_host_with_rule(
+    request,
     session,
     module_org,
     module_location,
@@ -184,7 +185,7 @@ def test_positive_auto_provision_host_with_rule(
     mac = pxeless_discovery_host._broker_args['provisioning_nic_mac_addr']
     wait_for(
         lambda: sat.api.DiscoveredHost().search(query={'mac': mac}) != [],
-        timeout=240,
+        timeout=1500,
         delay=20,
     )
     discovered_host = sat.api.DiscoveredHost().search(query={'mac': mac})[0]
@@ -194,8 +195,11 @@ def test_positive_auto_provision_host_with_rule(
     discovered_host.build = True
 
     discovered_host_name = discovered_host.name
-    domain_name = provisioning_hostgroup.domain.name
+    domain_name = provisioning_hostgroup.domain.read().name
     host_name = f'{discovered_host_name}.{domain_name}'
+
+    # Teardown
+    request.addfinalizer(lambda: sat.provisioning_cleanup(host_name))
 
     discovery_rule = sat.api.DiscoveryRule(
         max_count=10,

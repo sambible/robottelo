@@ -2,8 +2,6 @@
 
 :Requirement: Registration
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Registration
 
 :CaseAutomation: Automated
@@ -11,14 +9,13 @@
 :CaseImportance: High
 
 :Team: Rocket
-
-:TestType: Functional
-
-:Upstream: No
 """
+
 import pytest
 
 from robottelo.config import settings
+
+pytestmark = pytest.mark.destructive
 
 
 @pytest.mark.tier3

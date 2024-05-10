@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: HostGroup
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from random import randint
 
 from fauxfactory import gen_string
@@ -62,7 +58,6 @@ class TestHostGroup:
 
         :BZ: 1107708, 1222118, 1487586
 
-        :CaseLevel: System
         """
         # Creating entities like organization, content view and lifecycle_env
         # with not utf-8 names for easier interaction with puppet environment
@@ -169,7 +164,6 @@ class TestHostGroup:
 
         :CaseImportance: Medium
 
-        :CaseLevel: System
         """
         lce = module_target_sat.api.LifecycleEnvironment(organization=module_org).create()
         content_view = module_target_sat.api.ContentView(organization=module_org).create()
@@ -247,8 +241,6 @@ class TestHostGroup:
 
         :expectedresults: A hostgroup is created with expected properties,
             updated and deleted
-
-        :CaseLevel: Integration
 
         :CaseImportance: High
         """
@@ -402,7 +394,6 @@ class TestHostGroup:
 
         :expectedresults: A hostgroup is created with expected realm assigned
 
-        :CaseLevel: Integration
         """
         realm = target_sat.api.Realm(
             location=[module_location],
@@ -427,7 +418,6 @@ class TestHostGroup:
         :expectedresults: A hostgroup is created with expected multiple
             locations assigned
 
-        :CaseLevel: Integration
         """
         locs = [
             module_target_sat.api.Location(organization=[module_org]).create()
@@ -449,7 +439,6 @@ class TestHostGroup:
         :expectedresults: A hostgroup is created with expected multiple
             organizations assigned
 
-        :CaseLevel: Integration
         """
         orgs = [target_sat.api.Organization().create() for _ in range(randint(3, 5))]
         hostgroup = target_sat.api.HostGroup(organization=orgs).create()
@@ -482,7 +471,6 @@ class TestHostGroup:
 
         :CaseImportance: Medium
 
-        :CaseLevel: Integration
         """
         new_proxy = session_puppet_enabled_sat.api.SmartProxy().search(
             query={'search': f'url = {session_puppet_enabled_sat.url}:9090'}
@@ -502,7 +490,6 @@ class TestHostGroup:
 
         :expectedresults: A hostgroup is updated with expected realm
 
-        :CaseLevel: Integration
         """
         realm = target_sat.api.Realm(
             location=[module_location],
@@ -535,7 +522,6 @@ class TestHostGroup:
 
         :expectedresults: A hostgroup is updated with expected puppet proxy
 
-        :CaseLevel: Integration
         """
         new_proxy = session_puppet_enabled_sat.api.SmartProxy().search(
             query={'search': f'url = {session_puppet_enabled_sat.url}:9090'}
@@ -554,7 +540,6 @@ class TestHostGroup:
 
         :expectedresults: A hostgroup is updated with expected puppet proxy
 
-        :CaseLevel: Integration
         """
         new_content_source = target_sat.api.SmartProxy().search(
             query={'search': f'url = {target_sat.url}:9090'}
@@ -573,7 +558,6 @@ class TestHostGroup:
 
         :expectedresults: A hostgroup is updated with expected locations
 
-        :CaseLevel: Integration
         """
         new_locs = [
             module_target_sat.api.Location(organization=[module_org]).create()
@@ -593,7 +577,6 @@ class TestHostGroup:
 
         :expectedresults: A hostgroup is updated with expected organizations
 
-        :CaseLevel: Integration
         """
         new_orgs = [target_sat.api.Organization().create() for _ in range(randint(3, 5))]
         hostgroup.organization = new_orgs
@@ -649,8 +632,6 @@ class TestHostGroup:
 
         :customerscenario: true
 
-        :CaseLevel: Integration
-
         :BZ: 1710853
         """
         group_params = {'name': gen_string('alpha'), 'value': gen_string('alpha')}
@@ -681,7 +662,6 @@ class TestHostGroupMissingAttr:
         :expectedresults: The response contains both values for the
             ``content_source`` field.
 
-        :CaseLevel: Integration
         """
         names = module_target_sat.api_factory.one_to_one_names('content_source')
         hostgroup_attrs = set(hostgroup.read_json().keys())
@@ -700,7 +680,6 @@ class TestHostGroupMissingAttr:
         :expectedresults: The response contains both values for the
             ``content_view`` field.
 
-        :CaseLevel: Integration
         """
         names = module_target_sat.api_factory.one_to_one_names('content_view')
         hostgroup_attrs = set(hostgroup.read_json().keys())
@@ -719,7 +698,6 @@ class TestHostGroupMissingAttr:
         :expectedresults: The response contains both values for the
             ``lifecycle_environment`` field.
 
-        :CaseLevel: Integration
         """
         names = module_target_sat.api_factory.one_to_one_names('lifecycle_environment')
         hostgroup_attrs = set(hostgroup.read_json().keys())
@@ -740,7 +718,6 @@ class TestHostGroupMissingAttr:
 
         :BZ: 1371900
 
-        :CaseLevel: Integration
         """
         proxy = session_puppet_enabled_sat.api.SmartProxy().search(
             query={'search': f'url = {session_puppet_enabled_sat.url}:9090'}
@@ -762,7 +739,6 @@ class TestHostGroupMissingAttr:
 
         :BZ: 1371900
 
-        :CaseLevel: Integration
         """
         proxy = session_puppet_enabled_sat.api.SmartProxy().search(
             query={'search': f'url = {session_puppet_enabled_sat.url}:9090'}

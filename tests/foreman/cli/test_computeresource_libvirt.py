@@ -21,18 +21,14 @@ Subcommands::
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: ComputeResources-libvirt
 
 :Team: Rocket
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import random
 
 from fauxfactory import gen_string, gen_url
@@ -106,7 +102,6 @@ def invalid_update_data():
 
 
 @pytest.fixture(scope="module")
-@pytest.mark.skip_if_not_set('libvirt')
 def libvirt_url():
     return LIBVIRT_RESOURCE_URL % settings.libvirt.libvirt_hostname
 
@@ -120,8 +115,6 @@ def test_positive_create_with_name(libvirt_url, module_target_sat):
     :expectedresults: Compute resource is created
 
     :CaseImportance: Critical
-
-    :CaseLevel: Component
     """
     module_target_sat.cli.ComputeResource.create(
         {
@@ -141,8 +134,6 @@ def test_positive_info(libvirt_url, module_target_sat):
     :expectedresults: Compute resource Info is displayed
 
     :CaseImportance: Critical
-
-    :CaseLevel: Component
     """
     name = gen_string('utf8')
     compute_resource = module_target_sat.cli_factory.compute_resource(
@@ -165,15 +156,13 @@ def test_positive_list(libvirt_url, module_target_sat):
     :expectedresults: Compute resource List is displayed
 
     :CaseImportance: Critical
-
-    :CaseLevel: Component
     """
     comp_res = module_target_sat.cli_factory.compute_resource(
         {'provider': FOREMAN_PROVIDERS['libvirt'], 'url': libvirt_url}
     )
     assert comp_res['name']
     result_list = module_target_sat.cli.ComputeResource.list(
-        {'search': 'name=%s' % comp_res['name']}
+        {'search': 'name={}'.format(comp_res['name'])}
     )
     assert len(result_list) > 0
     result = module_target_sat.cli.ComputeResource.exists(search=('name', comp_res['name']))
@@ -190,8 +179,6 @@ def test_positive_delete_by_name(libvirt_url, module_target_sat):
     :expectedresults: Compute resource deleted
 
     :CaseImportance: Critical
-
-    :CaseLevel: Component
     """
     comp_res = module_target_sat.cli_factory.compute_resource(
         {'provider': FOREMAN_PROVIDERS['libvirt'], 'url': libvirt_url}
@@ -215,8 +202,6 @@ def test_positive_create_with_libvirt(libvirt_url, options, target_sat):
 
     :CaseImportance: Critical
 
-    :CaseLevel: Component
-
     :parametrized: yes
     """
     target_sat.cli.ComputeResource.create(
@@ -238,8 +223,6 @@ def test_positive_create_with_loc(libvirt_url, module_target_sat):
     :expectedresults: Compute resource is created and has location assigned
 
     :CaseImportance: High
-
-    :CaseLevel: Integration
     """
     location = module_target_sat.cli_factory.make_location()
     comp_resource = module_target_sat.cli_factory.compute_resource(
@@ -263,8 +246,6 @@ def test_positive_create_with_locs(libvirt_url, module_target_sat):
         locations assigned
 
     :CaseImportance: High
-
-    :CaseLevel: Integration
     """
     locations_amount = random.randint(3, 5)
     locations = [module_target_sat.cli_factory.make_location() for _ in range(locations_amount)]
@@ -294,8 +275,6 @@ def test_negative_create_with_name_url(libvirt_url, options, target_sat):
 
     :CaseImportance: High
 
-    :CaseLevel: Component
-
     :parametrized: yes
     """
     with pytest.raises(CLIReturnCodeError):
@@ -317,8 +296,6 @@ def test_negative_create_with_same_name(libvirt_url, module_target_sat):
     :expectedresults: Compute resource not created
 
     :CaseImportance: High
-
-    :CaseLevel: Component
     """
     comp_res = module_target_sat.cli_factory.compute_resource(
         {'provider': FOREMAN_PROVIDERS['libvirt'], 'url': libvirt_url}
@@ -346,8 +323,6 @@ def test_positive_update_name(libvirt_url, options, module_target_sat):
     :expectedresults: Compute Resource successfully updated
 
     :CaseImportance: Critical
-
-    :CaseLevel: Component
 
     :parametrized: yes
     """
@@ -379,8 +354,6 @@ def test_negative_update(libvirt_url, options, module_target_sat):
 
     :CaseImportance: High
 
-    :CaseLevel: Component
-
     :parametrized: yes
     """
     comp_res = module_target_sat.cli_factory.compute_resource(
@@ -392,7 +365,7 @@ def test_negative_update(libvirt_url, options, module_target_sat):
     # check attributes have not changed
     assert result['name'] == comp_res['name']
     options.pop('new-name', None)
-    for key in options.keys():
+    for key in options:
         assert comp_res[key] == result[key]
 
 
@@ -410,8 +383,6 @@ def test_positive_create_with_console_password_and_name(
     :BZ: 1100344
 
     :CaseImportance: High
-
-    :CaseLevel: Component
 
     :parametrized: yes
     """
@@ -437,8 +408,6 @@ def test_positive_update_console_password(libvirt_url, set_console_password, mod
     :BZ: 1100344
 
     :CaseImportance: High
-
-    :CaseLevel: Component
 
     :parametrized: yes
     """
@@ -517,7 +486,7 @@ def test_positive_provision_end_to_end(
         }
     )
     # teardown
-    request.addfinalizer(lambda: sat.cli.Host.delete({'id': host['id']}))
+    request.addfinalizer(lambda: sat.provisioning_cleanup(host['name'], interface='CLI'))
 
     # checks
     hostname = f'{hostname}.{module_libvirt_provisioning_sat.domain.name}'

@@ -4,18 +4,15 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
 :CaseComponent: ContentViews
 
 :team: Phoenix-content
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
+from datetime import datetime, timedelta
 import random
 
 from fauxfactory import gen_integer, gen_string, gen_utf8
@@ -26,6 +23,7 @@ from robottelo.config import settings, user_nailgun_config
 from robottelo.constants import (
     CONTAINER_REGISTRY_HUB,
     CUSTOM_RPM_SHA_512_FEED_COUNT,
+    DEFAULT_ARCHITECTURE,
     FILTER_ERRATA_TYPE,
     PERMISSIONS,
     PRDS,
@@ -101,8 +99,7 @@ def apply_package_filter(content_view, repo, package, target_sat, inclusion=True
     assert cv_filter.id == cv_filter_rule.content_view_filter.id
     content_view.publish()
     content_view = content_view.read()
-    content_view_version_info = content_view.version[0].read()
-    return content_view_version_info
+    return content_view.version[0].read()
 
 
 class TestContentView:
@@ -117,8 +114,6 @@ class TestContentView:
 
         :expectedresults: It is possible to create a host and set its
             'content_view_id' facet attribute
-
-        :CaseLevel: Integration
 
         :CaseAutomation: Automated
 
@@ -153,8 +148,6 @@ class TestContentView:
         :expectedresults: Cloned content view can be published and promoted to
             the same environment as the original content view
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
         """
         class_published_cloned_cv.read().version[0].promote(data={'environment_ids': module_lce.id})
@@ -173,8 +166,6 @@ class TestContentView:
         :expectedresults: Cloned content view can be published and promoted to
             a different environment as the original content view
 
-        :CaseLevel: Integration
-
         :CaseImportance: Medium
         """
         le_clone = module_target_sat.api.LifecycleEnvironment(organization=module_org).create()
@@ -187,8 +178,6 @@ class TestContentView:
         :id: db452e0c-0c17-40f2-bab4-8467e7a875f1
 
         :expectedresults: Custom content assigned and present in content view
-
-        :CaseLevel: Integration
 
         :CaseImportance: Critical
         """
@@ -213,8 +202,6 @@ class TestContentView:
         :id: 9e4821cb-293a-4d84-bd1f-bb9fff36b143
 
         :expectedresults: Custom content (module streams) assigned and present in content view
-
-        :CaseLevel: Integration
 
         :CaseImportance: High
         """
@@ -241,8 +228,6 @@ class TestContentView:
 
         :expectedresults: User cannot add repos multiple times to the view
 
-        :CaseLevel: Integration
-
         :CaseImportance: Low
         """
         yum_repo = module_target_sat.api.Repository(product=module_product).create()
@@ -264,8 +249,6 @@ class TestContentView:
         :id: 1f473b02-5e2b-41ff-a706-c0635abc2476
 
         :expectedresults: Custom sha512 assigned and present in content view
-
-        :CaseLevel: Integration
 
         :CaseComponent: Pulp
 
@@ -297,6 +280,63 @@ class TestContentView:
         assert (
             content_view_version.errata_counts['total'] == CUSTOM_RPM_SHA_512_FEED_COUNT['errata']
         )
+
+    @pytest.mark.tier2
+    def test_ccv_promote_registry_name_change(self, module_target_sat, module_sca_manifest_org):
+        """Testing CCV promotion scenarios where the registry_name has been changed to some
+        specific value.
+
+        :id: 41641d4a-d144-4833-869a-284624df2410
+
+        :steps:
+
+            1) Sync a RH Repo
+            2) Create a CV, add the repo and publish it
+            3) Create a CCV and add the CV version to it, then publish it
+            4) Create LCEs with the specific value for registry_name
+            5) Promote the CCV to both LCEs
+
+        :expectedresults: CCV can be promoted to both LCEs without issue.
+
+        :CaseImportance: High
+
+        :customerscenario: true
+
+        :BZ: 2153523
+        """
+        rh_repo_id = module_target_sat.api_factory.enable_rhrepo_and_fetchid(
+            basearch=DEFAULT_ARCHITECTURE,
+            org_id=module_sca_manifest_org.id,
+            product=REPOS['kickstart']['rhel8_aps']['product'],
+            repo=REPOS['kickstart']['rhel8_aps']['name'],
+            reposet=REPOS['kickstart']['rhel8_aps']['reposet'],
+            releasever=REPOS['kickstart']['rhel8_aps']['version'],
+        )
+        repo = module_target_sat.api.Repository(id=rh_repo_id).read()
+        repo.sync(timeout=600)
+        cv = module_target_sat.api.ContentView(organization=module_sca_manifest_org).create()
+        cv = module_target_sat.api.ContentView(id=cv.id, repository=[repo]).update(["repository"])
+        cv.publish()
+        cv = cv.read()
+        composite_cv = module_target_sat.api.ContentView(
+            organization=module_sca_manifest_org, composite=True
+        ).create()
+        composite_cv.component = [cv.version[0]]
+        composite_cv = composite_cv.update(['component'])
+        composite_cv.publish()
+        composite_cv = composite_cv.read()
+        # Create LCEs with the specific registry value
+        lce1 = module_target_sat.api.LifecycleEnvironment(
+            organization=module_sca_manifest_org,
+            registry_name_pattern='<%= repository.name %>',
+        ).create()
+        lce2 = module_target_sat.api.LifecycleEnvironment(
+            organization=module_sca_manifest_org,
+            registry_name_pattern='<%= lifecycle_environment.label %>/<%= repository.name %>',
+        ).create()
+        version = composite_cv.version[0].read()
+        assert 'success' in version.promote(data={'environment_ids': lce1.id})['result']
+        assert 'success' in version.promote(data={'environment_ids': lce2.id})['result']
 
 
 class TestContentViewCreate:
@@ -388,9 +428,6 @@ class TestContentViewCreate:
 class TestContentViewPublishPromote:
     """Tests for publishing and promoting content views."""
 
-    @pytest.mark.skipif(
-        (not settings.robottelo.REPOS_HOSTING_URL), reason='Missing repos_hosting_url'
-    )
     @pytest.fixture(scope='class', autouse=True)
     def class_setup(self, request, module_product, class_target_sat):
         """Set up organization, product and repositories for tests."""
@@ -428,8 +465,6 @@ class TestContentViewPublishPromote:
             content view can be published several times, and each content view
             version has at least one package.
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
         """
         content_view.repository = [self.yum_repo]
@@ -456,8 +491,6 @@ class TestContentViewPublishPromote:
         :expectedresults: Composite content view is published and corresponding
             version is assigned to it.
 
-        :CaseLevel: Integration
-
         :CaseImportance: Critical
         """
         composite_cv = module_target_sat.api.ContentView(
@@ -483,8 +516,6 @@ class TestContentViewPublishPromote:
         :expectedresults: Composite content view is published several times and
             corresponding versions are assigned to it.
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
         """
         composite_cv = module_target_sat.api.ContentView(
@@ -509,8 +540,6 @@ class TestContentViewPublishPromote:
         :expectedresults: The content view has one repository, the content view
             version is in ``REPEAT + 1`` lifecycle environments and it has at
             least one package.
-
-        :CaseLevel: Integration
 
         :CaseImportance: High
         """
@@ -544,8 +573,6 @@ class TestContentViewPublishPromote:
         :expectedresults: Content view can be created and assigned to composite
             one through content view versions mechanism
 
-        :CaseLevel: Integration
-
         :CaseImportance: Critical
         """
         content_view.repository = [self.yum_repo]
@@ -566,6 +593,54 @@ class TestContentViewPublishPromote:
         assert composite_cv.component[0].read().content_view.id == content_view.id
 
     @pytest.mark.tier2
+    def test_negative_publish_during_repo_sync(self, content_view, module_target_sat):
+        """Attempt to publish a new version of the content-view,
+        while an associated repository is being synced.
+
+        :id: c272fff7-a679-4844-a261-80830cdd5694
+
+        :BZ: 1957144
+
+        :steps:
+            1. Add repository to content-view
+            2. Perform asynchronous repository sync
+            3. Attempt to publish a version of the content-view, while repo sync ongoing.
+
+        :expectedresults:
+            1. User cannot publish during repository sync.
+            2. HTTP exception raised, assert publish task failed for expected reason,
+                repo sync task_id found in humanized error, content-view versions unchanged.
+        """
+        # add repository to content-view
+        content_view.repository = [self.yum_repo]
+        content_view.update(['repository'])
+        content_view = content_view.read()
+        existing_versions = content_view.version
+        timestamp = (datetime.utcnow() - timedelta(seconds=1)).strftime('%Y-%m-%d %H:%M')
+
+        # perform async repository sync, while still in progress-
+        # attempt to publish a new version of the content view.
+        repo_task_id = self.yum_repo.sync(synchronous=False)['id']
+        with pytest.raises(HTTPError) as InternalServerError:
+            content_view.publish()
+        assert str(content_view.id) in str(InternalServerError)
+
+        # search for failed publish task
+        task_action = 'Actions::Katello::ContentView::Publish'
+        task_search = module_target_sat.api.ForemanTask().search(
+            query={'search': f'{task_action} and started_at >= "{timestamp}"'}
+        )
+        assert len(task_search) == 1
+        task_id = task_search[0].id
+        # task failed for expected reason
+        task = module_target_sat.api.ForemanTask(id=task_id).poll(must_succeed=False)
+        assert task['result'] == 'error'
+        assert len(task['humanized']['errors']) == 1
+        assert repo_task_id in task['humanized']['errors'][0]
+        # no new versions of content view, any existing remained the same
+        assert content_view.read().version == existing_versions
+
+    @pytest.mark.tier2
     def test_negative_add_components_to_composite(
         self, content_view, module_org, module_target_sat
     ):
@@ -575,8 +650,6 @@ class TestContentViewPublishPromote:
         :id: 60aa7a4e-df6e-407e-86c7-a4c540bda8b5
 
         :expectedresults: User cannot add components to the view
-
-        :CaseLevel: Integration
 
         :CaseImportance: Low
         """
@@ -607,8 +680,6 @@ class TestContentViewPublishPromote:
         :expectedresults: Composite content view version points to ``Library +
             1`` lifecycle environments after the promotions.
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
         """
         composite_cv = module_target_sat.api.ContentView(
@@ -638,8 +709,6 @@ class TestContentViewPublishPromote:
         :expectedresults: Composite content view version points to ``Library +
             random`` lifecycle environments after the promotions.
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
         """
         composite_cv = module_target_sat.api.ContentView(
@@ -668,8 +737,6 @@ class TestContentViewPublishPromote:
         :id: 40d20aba-726f-48e3-93b7-fb1ab1851ac7
 
         :expectedresults: Content view promoted out of sequence properly
-
-        :CaseLevel: Integration
 
         :CaseImportance: Medium
         """
@@ -704,8 +771,6 @@ class TestContentViewPublishPromote:
         :id: 5557a33b-7a6f-45f5-9fe4-23a704ed9e21
 
         :expectedresults: Content view publish should not raise an exception.
-
-        :CaseLevel: Integration
 
         :CaseComponent: Pulp
 
@@ -801,8 +866,6 @@ class TestContentViewPublishPromote:
         :expectedresults: When appropriate, a ccv and it's cvs needs_publish flags get
             set or unset
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
         """
         composite_cv = target_sat.api.ContentView(composite=True).create()
@@ -861,8 +924,6 @@ class TestContentViewPublishPromote:
 
         :expectedresults: The publish_only_if_needed flag is working as intended, and is defaulted
             to false
-
-        :CaseLevel: Integration
 
         :CaseImportance: High
         """
@@ -997,8 +1058,6 @@ class TestContentViewRedHatContent:
 
         :expectedresults: RH Content assigned and present in a view
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
         """
         assert len(self.yumcv.repository) == 1
@@ -1012,8 +1071,6 @@ class TestContentViewRedHatContent:
 
         :expectedresults: Filtered RH content is available and can be seen in a
             view
-
-        :CaseLevel: Integration
 
         :CaseImportance: High
         """
@@ -1041,8 +1098,6 @@ class TestContentViewRedHatContent:
         :expectedresults: edited content view save is successful and info is
             updated
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
         """
         cvf = target_sat.api.ErratumContentViewFilter(
@@ -1067,8 +1122,6 @@ class TestContentViewRedHatContent:
 
         :expectedresults: Content view can be published
 
-        :CaseLevel: Integration
-
         :CaseImportance: Critical
         """
         content_view.repository = [self.repo]
@@ -1084,8 +1137,6 @@ class TestContentViewRedHatContent:
         :id: 094a8c46-935b-4dbc-830e-19bec935276c
 
         :expectedresults: Content view can be published
-
-        :CaseLevel: Integration
 
         :CaseImportance: High
         """
@@ -1104,8 +1155,6 @@ class TestContentViewRedHatContent:
         :id: 991dd9cc-5818-42dc-9098-66b312adfd97
 
         :expectedresults: Content view can be promoted
-
-        :CaseLevel: Integration
 
         :CaseImportance: Critical
         """
@@ -1129,8 +1178,6 @@ class TestContentViewRedHatContent:
         :id: 8331ba11-1742-425f-83b1-6b06c5785572
 
         :expectedresults: Content view can be promoted
-
-        :CaseLevel: Integration
 
         :CaseImportance: High
         """
@@ -1165,8 +1212,6 @@ class TestContentViewRedHatContent:
 
         :expectedresults: All of the above steps should results in the CV needing to be
             be published
-
-        :CaseLevel: Integration
 
         :CaseImportance: High
         """
@@ -1251,8 +1296,6 @@ def test_positive_admin_user_actions(
     :expectedresults: The user can Read, Modify, Delete, Publish, Promote
         the content views
 
-    :CaseLevel: Integration
-
     :CaseImportance: Critical
     """
     user_login = gen_string('alpha')
@@ -1310,8 +1353,6 @@ def test_positive_readonly_user_actions(target_sat, function_role, content_view,
 
     :expectedresults: User with read-only role for content view can view
         the repository in the content view
-
-    :CaseLevel: Integration
 
     :CaseImportance: Critical
     """
@@ -1376,8 +1417,6 @@ def test_negative_readonly_user_actions(
         create Product, Host Collection, or Activation key
 
     :BZ: 1922134
-
-    :CaseLevel: Integration
 
     :CaseImportance: Critical
     """
@@ -1454,8 +1493,6 @@ def test_negative_non_readonly_user_actions(target_sat, content_view, function_r
     :expectedresults: the user can perform different operations against
         content view, but not read it
 
-    :CaseLevel: Integration
-
     :CaseImportance: Critical
     """
     user_login = gen_string('alpha')
@@ -1496,9 +1533,6 @@ def test_negative_non_readonly_user_actions(target_sat, content_view, function_r
 class TestOstreeContentView:
     """Tests for ostree contents in content views."""
 
-    @pytest.mark.skipif(
-        (not settings.robottelo.REPOS_HOSTING_URL), reason='Missing repos_hosting_url'
-    )
     @pytest.fixture(scope='class', autouse=True)
     def initiate_testclass(self, request, module_product, class_target_sat):
         """Set up organization, product and repositories for tests."""
@@ -1533,8 +1567,6 @@ class TestOstreeContentView:
         :expectedresults: Custom ostree content assigned and present in content
             view
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
         """
         assert len(content_view.repository) == 0
@@ -1552,8 +1584,6 @@ class TestOstreeContentView:
         :expectedresults: Content-view with Custom ostree published
             successfully
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
         """
         content_view.repository = [self.ostree_repo]
@@ -1569,8 +1599,6 @@ class TestOstreeContentView:
 
         :expectedresults: Content-view with custom ostree contents promoted
             successfully
-
-        :CaseLevel: Integration
 
         :CaseImportance: High
         """
@@ -1592,8 +1620,6 @@ class TestOstreeContentView:
         :expectedresults: Content-view with custom ostree and other contents
             promoted successfully
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
         """
         content_view.repository = [self.ostree_repo, self.yum_repo, self.docker_repo]
@@ -1611,7 +1637,6 @@ class TestOstreeContentView:
 class TestContentViewRedHatOstreeContent:
     """Tests for publishing and promoting cv with RH ostree contents."""
 
-    @pytest.mark.run_in_one_thread
     @pytest.fixture(scope='class', autouse=True)
     def initiate_testclass(self, request, module_entitlement_manifest_org, class_target_sat):
         """Set up organization, product and repositories for tests."""
@@ -1636,8 +1661,6 @@ class TestContentViewRedHatOstreeContent:
         :expectedresults: RH atomic ostree content assigned and present in
             content view
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
         """
         assert len(content_view.repository) == 0
@@ -1655,8 +1678,6 @@ class TestContentViewRedHatOstreeContent:
         :expectedresults: Content-view with RH ostree contents published
             successfully
 
-        :CaseLevel: Integration
-
         :CaseImportance: High
         """
         content_view.repository = [self.repo]
@@ -1672,8 +1693,6 @@ class TestContentViewRedHatOstreeContent:
 
         :expectedresults: Content-view with RH ostree contents promoted
             successfully
-
-        :CaseLevel: Integration
 
         :CaseImportance: High
         """
@@ -1696,8 +1715,6 @@ class TestContentViewRedHatOstreeContent:
 
         :expectedresults: Content-view with RH ostree and other contents
             promoted successfully
-
-        :CaseLevel: Integration
 
         :CaseImportance: High
         """

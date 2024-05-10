@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: UsersRoles
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from math import ceil
 from random import choice
 import re
@@ -35,7 +31,9 @@ class TestRole:
     @pytest.mark.parametrize(
         ('name', 'new_name'),
         **parametrized(
-            list(zip(generate_strings_list(length=10), generate_strings_list(length=10)))
+            list(
+                zip(generate_strings_list(length=10), generate_strings_list(length=10), strict=True)
+            )
         ),
     )
     def test_positive_crud_with_name(self, name, new_name, module_target_sat):
@@ -281,7 +279,6 @@ class TestSystemAdmin:
             4. System Admin role should be able to create Organization admins
             5. User with sys admin role should be able to edit filters on roles
 
-        :CaseLevel: System
         """
         org = target_sat.cli_factory.make_org()
         location = target_sat.cli_factory.make_location()
@@ -300,7 +297,7 @@ class TestSystemAdmin:
         ).set({'name': "outofsync_interval", 'value': "32"})
         sync_time = target_sat.cli.Settings.list({'search': 'name=outofsync_interval'})[0]
         # Asserts if the setting was updated successfully
-        assert '32' == sync_time['value']
+        assert sync_time['value'] == '32'
 
         # Create another System Admin user using the first one
         system_admin = target_sat.cli.User.with_user(

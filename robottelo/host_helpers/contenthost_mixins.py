@@ -1,4 +1,5 @@
 """A collection of mixins for robottelo.hosts classes"""
+
 from functools import cached_property
 import json
 from tempfile import NamedTemporaryFile
@@ -100,26 +101,6 @@ class VersionedContent:
         product, release, v_major, repo = self._dogfood_helper(product, release, repo)
         return dogfood_repository(settings.ohsnap, repo, product, release, v_major, snap, self.arch)
 
-    def enable_tools_repo(self, organization_id):
-        return self.satellite.api_factory.enable_rhrepo_and_fetchid(
-            basearch=constants.DEFAULT_ARCHITECTURE,
-            org_id=organization_id,
-            product=constants.PRDS['rhel'],
-            repo=self.REPOS['rhst']['name'],
-            reposet=self.REPOSET['rhst'],
-            releasever=None,
-        )
-
-    def enable_rhel_repo(self, organization_id):
-        return self.satellite.api_factory.enable_rhrepo_and_fetchid(
-            basearch=constants.DEFAULT_ARCHITECTURE,
-            org_id=organization_id,
-            product=constants.PRDS['rhel'],
-            repo=self.REPOS['rhel']['name'],
-            reposet=self.REPOSET['rhel'],
-            releasever=None,
-        )
-
     def create_custom_html_repo(self, rpm_url, repo_name=None, update=False, remove_rpm=None):
         """Creates a custom yum repository, that will be published on https
 
@@ -156,6 +137,12 @@ class HostInfo:
         """return the applicable errata count for a host"""
         self.run('subscription-manager repos')
         return self.nailgun_host.read().content_facet_attributes['errata_counts']['total']
+
+    @property
+    def applicable_package_count(self):
+        """return the applicable package count for a host"""
+        self.run('subscription-manager repos')
+        return self.nailgun_host.read().content_facet_attributes['applicable_package_count']
 
 
 class SystemFacts:

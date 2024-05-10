@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: Hosts
 
 :Team: Endeavour
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from fauxfactory import gen_string
 import pytest
 
@@ -47,8 +43,7 @@ def valid_create_params():
 @filtered_datapoint
 def invalid_create_params():
     """Returns a list of invalid domain create parameters"""
-    params = [{'name': gen_string(str_type='utf8', length=256)}]
-    return params
+    return [{'name': gen_string(str_type='utf8', length=256)}]
 
 
 @filtered_datapoint
@@ -71,8 +66,7 @@ def valid_update_params():
 @filtered_datapoint
 def invalid_update_params():
     """Returns a list of invalid domain update parameters"""
-    params = [{'name': ''}, {'name': gen_string(str_type='utf8', length=256)}]
-    return params
+    return [{'name': ''}, {'name': gen_string(str_type='utf8', length=256)}]
 
 
 @filtered_datapoint
@@ -196,8 +190,6 @@ def test_negative_create_with_invalid_dns_id(module_target_sat):
 
     :BZ: 1398392
 
-    :CaseLevel: Integration
-
     :CaseImportance: Medium
     """
     with pytest.raises(CLIFactoryError) as context:
@@ -225,7 +217,7 @@ def test_negative_update(module_domain, options, module_target_sat):
         module_target_sat.cli.Domain.update(dict(options, id=module_domain.id))
     # check - domain not updated
     result = module_target_sat.cli.Domain.info({'id': module_domain.id})
-    for key in options.keys():
+    for key in options:
         assert result[key] == getattr(module_domain, key)
 
 

@@ -8,18 +8,14 @@ http://www.katello.org/docs/api/apidoc/compute_resources.html
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: ComputeResources-libvirt
 
 :Team: Rocket
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from fauxfactory import gen_string
 import pytest
 from requests.exceptions import HTTPError
@@ -46,8 +42,6 @@ def test_positive_crud_libvirt_cr(module_target_sat, module_org, module_location
     :expectedresults: Compute resources are created with expected names
 
     :CaseImportance: Critical
-
-    :CaseLevel: Component
     """
     name = gen_string('alphanumeric')
     description = gen_string('alphanumeric')
@@ -111,8 +105,6 @@ def test_positive_create_with_name_description(
 
     :CaseImportance: Critical
 
-    :CaseLevel: Component
-
     :parametrized: yes
     """
     compresource = module_target_sat.api.LibvirtComputeResource(
@@ -122,9 +114,9 @@ def test_positive_create_with_name_description(
         location=[module_location],
         url=LIBVIRT_URL,
     ).create()
+    request.addfinalizer(compresource.delete)
     assert compresource.name == name
     assert compresource.description == name
-    request.addfinalizer(compresource.delete)
 
 
 @pytest.mark.tier2
@@ -137,17 +129,15 @@ def test_positive_create_with_orgs_and_locs(request, module_target_sat):
         locations assigned
 
     :CaseImportance: High
-
-    :CaseLevel: Integration
     """
     orgs = [module_target_sat.api.Organization().create() for _ in range(2)]
     locs = [module_target_sat.api.Location(organization=[org]).create() for org in orgs]
     compresource = module_target_sat.api.LibvirtComputeResource(
         location=locs, organization=orgs, url=LIBVIRT_URL
     ).create()
+    request.addfinalizer(compresource.delete)
     assert {org.name for org in orgs} == {org.read().name for org in compresource.organization}
     assert {loc.name for loc in locs} == {loc.read().name for loc in compresource.location}
-    request.addfinalizer(compresource.delete)
 
 
 @pytest.mark.tier2
@@ -160,8 +150,6 @@ def test_negative_create_with_invalid_name(name, module_target_sat, module_org, 
     :expectedresults: Compute resources are not created
 
     :CaseImportance: High
-
-    :CaseLevel: Component
 
     :parametrized: yes
     """
@@ -183,15 +171,13 @@ def test_negative_create_with_same_name(request, module_target_sat, module_org, 
     :expectedresults: Compute resources is not created
 
     :CaseImportance: High
-
-    :CaseLevel: Component
     """
     name = gen_string('alphanumeric')
     cr = module_target_sat.api.LibvirtComputeResource(
         location=[module_location], name=name, organization=[module_org], url=LIBVIRT_URL
     ).create()
-    assert cr.name == name
     request.addfinalizer(cr.delete)
+    assert cr.name == name
     with pytest.raises(HTTPError):
         module_target_sat.api.LibvirtComputeResource(
             name=name,
@@ -211,8 +197,6 @@ def test_negative_create_with_url(module_target_sat, module_org, module_location
     :expectedresults: Compute resources are not created
 
     :CaseImportance: High
-
-    :CaseLevel: Component
 
     :parametrized: yes
     """
@@ -234,8 +218,6 @@ def test_negative_update_invalid_name(
     :expectedresults: Compute resource is not updated
 
     :CaseImportance: High
-
-    :CaseLevel: Component
 
     :parametrized: yes
     """
@@ -259,25 +241,20 @@ def test_negative_update_same_name(request, module_target_sat, module_org, modul
     :expectedresults: Compute resources is not updated
 
     :CaseImportance: High
-
-    :CaseLevel: Component
     """
     name = gen_string('alphanumeric')
     compresource = module_target_sat.api.LibvirtComputeResource(
         location=[module_location], name=name, organization=[module_org], url=LIBVIRT_URL
     ).create()
+    request.addfinalizer(compresource.delete)
     new_compresource = module_target_sat.api.LibvirtComputeResource(
         location=[module_location], organization=[module_org], url=LIBVIRT_URL
     ).create()
+    request.addfinalizer(new_compresource.delete)
     new_compresource.name = name
     with pytest.raises(HTTPError):
         new_compresource.update(['name'])
     assert new_compresource.read().name != name
-
-    @request.addfinalizer
-    def _finalize():
-        compresource.delete()
-        new_compresource.delete()
 
 
 @pytest.mark.tier2
@@ -290,8 +267,6 @@ def test_negative_update_url(url, request, module_target_sat, module_org, module
     :expectedresults: Compute resources is not updated
 
     :CaseImportance: High
-
-    :CaseLevel: Component
 
     :parametrized: yes
     """

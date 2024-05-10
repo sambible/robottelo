@@ -1,4 +1,4 @@
-""" A sanity testing plugin to assist in executing robottelo tests as sanity tests smartly
+"""A sanity testing plugin to assist in executing robottelo tests as sanity tests smartly
 
 1. Make installer test to run first which should set the hostname and all other tests then
 should run after that
@@ -43,10 +43,12 @@ def pytest_collection_modifyitems(session, items, config):
                 deselected.append(item)
                 continue
             # Remove parametrization from organization test
-            if 'test_positive_create_with_name_and_description' in item.name:
-                if 'alphanumeric' not in item.name:
-                    deselected.append(item)
-                    continue
+            if (
+                'test_positive_create_with_name_and_description' in item.name
+                and 'alphanumeric' not in item.name
+            ):
+                deselected.append(item)
+                continue
         # Else select
         selected.append(item)
 

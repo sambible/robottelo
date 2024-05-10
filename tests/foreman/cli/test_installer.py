@@ -1,21 +1,17 @@
 """Tests For Disconnected Satellite Installation
 
-:Requirement: Installer (disconnected satellite installation)
+:Requirement: Installation (disconnected satellite installation)
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
-:CaseComponent: Installer
+:CaseComponent: Installation
 
 :Team: Platform
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import pytest
 
 pytestmark = [pytest.mark.stubbed]

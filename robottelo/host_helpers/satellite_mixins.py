@@ -1,5 +1,5 @@
 import contextlib
-from functools import cache
+from functools import lru_cache
 import io
 import os
 import random
@@ -145,9 +145,10 @@ class ContentInfo:
         :returns: the manifest upload result
 
         """
-        if not isinstance(manifest, bytes | io.BytesIO):
-            if manifest.content is None:
-                manifest = clone()
+        if not isinstance(manifest, bytes | io.BytesIO) and (
+            not hasattr(manifest, 'content') or manifest.content is None
+        ):
+            manifest = clone()
         if timeout is None:
             # Set the timeout to 1500 seconds to align with the API timeout.
             timeout = 1500000
@@ -188,11 +189,10 @@ class ContentInfo:
 
         :returns: A dictionary containing the details of the published content view.
         """
-        repo = repo_list if type(repo_list) is list else [repo_list]
+        repo = repo_list if isinstance(repo_list, list) else [repo_list]
         content_view = self.api.ContentView(organization=org, repository=repo).create()
         content_view.publish()
-        content_view = content_view.read()
-        return content_view
+        return content_view.read()
 
     def move_pulp_archive(self, org, export_message):
         """
@@ -208,11 +208,7 @@ class ContentInfo:
         # removes everything before export path,
         # replaces EXPORT_PATH by IMPORT_PATH,
         # removes metadata filename
-        import_path = os.path.dirname(
-            re.sub(rf'.*{PULP_EXPORT_DIR}', PULP_IMPORT_DIR, export_message)
-        )
-
-        return import_path
+        return os.path.dirname(re.sub(rf'.*{PULP_EXPORT_DIR}', PULP_IMPORT_DIR, export_message))
 
 
 class SystemInfo:
@@ -235,9 +231,9 @@ class SystemInfo:
         :rtype: int
         """
         port_pool_range = settings.fake_capsules.port_range
-        if type(port_pool_range) is str:
+        if isinstance(port_pool_range, str):
             port_pool_range = tuple(port_pool_range.split('-'))
-        if type(port_pool_range) is tuple and len(port_pool_range) == 2:
+        if isinstance(port_pool_range, tuple) and len(port_pool_range) == 2:
             port_pool = range(int(port_pool_range[0]), int(port_pool_range[1]))
         else:
             raise TypeError(
@@ -263,14 +259,14 @@ class SystemInfo:
         except ValueError:
             raise CapsuleTunnelError(
                 f'Failed parsing the port numbers from stdout: {ss_cmd.stdout.splitlines()[:-1]}'
-            )
+            ) from None
         try:
             # take the list of available ports and return randomly selected one
             return random.choice([port for port in port_pool if port not in used_ports])
         except IndexError:
             raise CapsuleTunnelError(
                 'Failed to create ssh tunnel: No more ports available for mapping'
-            )
+            ) from None
 
     @contextlib.contextmanager
     def default_url_on_new_port(self, oldport, newport):
@@ -292,10 +288,10 @@ class SystemInfo:
             post_ncat_procs = self.execute('pgrep ncat').stdout.splitlines()
             ncat_pid = set(post_ncat_procs).difference(set(pre_ncat_procs))
             if not len(ncat_pid):
-                stderr = channel.get_exit_status()[1]
-                logger.debug(f'Tunnel failed: {stderr}')
+                err = channel.get_exit_signal()
+                logger.debug(f'Tunnel failed: {err}')
                 # Something failed, so raise an exception.
-                raise CapsuleTunnelError(f'Starting ncat failed: {stderr}')
+                raise CapsuleTunnelError(f'Starting ncat failed: {err}')
             forward_url = f'https://{self.hostname}:{newport}'
             logger.debug(f'Yielding capsule forward port url: {forward_url}')
             try:
@@ -308,11 +304,11 @@ class SystemInfo:
         self,
         org,
         dir_path,
-        file_names=['*.json', '*.tar.gz'],
+        file_names=('*.json', '*.tar.gz'),
     ):
         """Checks the existence of certain files in a pulp dir"""
         extension_query = ' -o '.join([f'-name "{file}"' for file in file_names])
-        result = self.execute(fr'find {dir_path}{org.name} -type f \( {extension_query} \)')
+        result = self.execute(rf'find {dir_path}{org.name} -type f \( {extension_query} \)')
         return result.stdout
 
 
@@ -342,6 +338,19 @@ class ProvisioningSetup:
             == 0
         )
 
+    def provisioning_cleanup(self, hostname, interface='API'):
+        if interface == 'CLI':
+            if self.cli.Host.exists(search=('name', hostname)):
+                self.cli.Host.delete({'name': hostname})
+            assert not self.cli.Host.exists(search=('name', hostname))
+        else:
+            host = self.api.Host().search(query={'search': f'name="{hostname}"'})
+            if host:
+                host[0].delete()
+            assert not self.api.Host().search(query={'search': f'name={hostname}'})
+        # Workaround BZ: 2207698
+        assert self.cli.Service.restart().status == 0
+
 
 class Factories:
     """Mixin that provides attributes for each factory type"""
@@ -358,6 +367,6 @@ class Factories:
             self._api_factory = APIFactory(self)
         return self._api_factory
 
-    @cache
+    @lru_cache
     def ui_factory(self, session):
         return UIFactory(self, session=session)

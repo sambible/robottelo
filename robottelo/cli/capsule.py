@@ -19,6 +19,7 @@ Subcommands::
     refresh-features              Refresh capsule features
     update                        Update a capsule
 """
+
 from robottelo.cli.base import Base
 
 
@@ -35,9 +36,7 @@ class Capsule(Base):
 
         cls.command_sub = 'content add-lifecycle-environment'
 
-        result = cls.execute(cls._construct_command(options), output_format='csv')
-
-        return result
+        return cls.execute(cls._construct_command(options), output_format='csv')
 
     @classmethod
     def content_available_lifecycle_environments(cls, options):
@@ -45,9 +44,7 @@ class Capsule(Base):
 
         cls.command_sub = 'content available-lifecycle-environments'
 
-        result = cls.execute(cls._construct_command(options), output_format='csv')
-
-        return result
+        return cls.execute(cls._construct_command(options), output_format='csv')
 
     @classmethod
     def content_info(cls, options):
@@ -55,9 +52,7 @@ class Capsule(Base):
 
         cls.command_sub = 'content info'
 
-        result = cls.execute(cls._construct_command(options), output_format='json')
-
-        return result
+        return cls.execute(cls._construct_command(options), output_format='json')
 
     @classmethod
     def content_lifecycle_environments(cls, options):
@@ -65,9 +60,7 @@ class Capsule(Base):
 
         cls.command_sub = 'content lifecycle-environments'
 
-        result = cls.execute(cls._construct_command(options), output_format='csv')
-
-        return result
+        return cls.execute(cls._construct_command(options), output_format='csv')
 
     @classmethod
     def content_remove_lifecycle_environment(cls, options):
@@ -75,9 +68,7 @@ class Capsule(Base):
 
         cls.command_sub = 'content remove-lifecycle-environment'
 
-        result = cls.execute(cls._construct_command(options), output_format='csv')
-
-        return result
+        return cls.execute(cls._construct_command(options), output_format='csv')
 
     @classmethod
     def content_synchronization_status(cls, options):
@@ -85,9 +76,7 @@ class Capsule(Base):
 
         cls.command_sub = 'content synchronization-status'
 
-        result = cls.execute(cls._construct_command(options), output_format='csv')
-
-        return result
+        return cls.execute(cls._construct_command(options), output_format='csv')
 
     @classmethod
     def content_synchronize(cls, options, return_raw_response=None, timeout=3600000):
@@ -95,7 +84,7 @@ class Capsule(Base):
 
         cls.command_sub = 'content synchronize'
 
-        result = cls.execute(
+        return cls.execute(
             cls._construct_command(options),
             output_format='csv',
             ignore_stderr=True,
@@ -103,17 +92,13 @@ class Capsule(Base):
             timeout=timeout,
         )
 
-        return result
-
     @classmethod
     def content_update_counts(cls, options):
         """Trigger content counts update."""
 
         cls.command_sub = 'content update-counts'
 
-        result = cls.execute(cls._construct_command(options), output_format='json')
-
-        return result
+        return cls.execute(cls._construct_command(options), output_format='json')
 
     @classmethod
     def import_classes(cls, options):
@@ -121,9 +106,7 @@ class Capsule(Base):
 
         cls.command_sub = 'import-classes'
 
-        result = cls.execute(cls._construct_command(options), output_format='csv')
-
-        return result
+        return cls.execute(cls._construct_command(options), output_format='csv')
 
     @classmethod
     def refresh_features(cls, options):
@@ -131,6 +114,4 @@ class Capsule(Base):
 
         cls.command_sub = 'refresh-features'
 
-        result = cls.execute(cls._construct_command(options), output_format='csv')
-
-        return result
+        return cls.execute(cls._construct_command(options), output_format='csv')

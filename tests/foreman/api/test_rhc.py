@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
+:CaseComponent: RHCloud
 
-:CaseComponent: RHCloud-CloudConnector
-
-:Team: Platform
-
-:TestType: Functional
+:Team: Phoenix-subscriptions
 
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from fauxfactory import gen_string
 import pytest
 
@@ -44,7 +40,7 @@ def test_positive_configure_cloud_connector(target_sat, default_org, fixture_ena
 
     :id: 1338dc6a-12e0-4378-9a51-a33f4679ba30
 
-    :Steps:
+    :steps:
 
         1. Enable RH Cloud Connector
         2. Check if the task is completed successfully

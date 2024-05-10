@@ -75,6 +75,12 @@ class CLIError(Exception):
     """Indicates that a CLI command could not be run."""
 
 
+class CapsuleHostError(Exception):
+    """Indicates error in capsule configuration etc"""
+
+    pass
+
+
 class CLIBaseError(Exception):
     """Indicates that a CLI command has finished with return code different
     from zero.
@@ -101,9 +107,7 @@ class CLIBaseError(Exception):
 
     def __repr__(self):
         """Include class name status, stderr and msg to improve logging"""
-        return '{}(status={!r}, stderr={!r}, msg={!r}'.format(
-            type(self).__name__, self.status, self.stderr, self.msg
-        )
+        return f'{type(self).__name__}(status={self.status!r}, stderr={self.stderr!r}, msg={self.msg!r}'
 
 
 class CLIReturnCodeError(CLIBaseError):

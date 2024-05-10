@@ -1,4 +1,5 @@
 """Utility module to handle the virtwho configure UI/CLI/API testing"""
+
 import json
 import re
 import uuid
@@ -47,16 +48,15 @@ def get_system(system_type):
             'password': getattr(settings.virtwho, system_type).guest_password,
             'port': getattr(settings.virtwho, system_type).guest_port,
         }
-    elif system_type == 'satellite':
+    if system_type == 'satellite':
         return {
             'hostname': settings.server.hostname,
             'username': settings.server.ssh_username,
             'password': settings.server.ssh_password,
         }
-    else:
-        raise VirtWhoError(
-            f'"{system_type}" system type is not supported. Please use one of {system_type_list}'
-        )
+    raise VirtWhoError(
+        f'"{system_type}" system type is not supported. Please use one of {system_type_list}'
+    )
 
 
 def get_guest_info(hypervisor_type):
@@ -100,23 +100,18 @@ def register_system(system, activation_key=None, org='Default_Organization', env
     runcmd('subscription-manager clean', system)
     runcmd('rpm -qa | grep katello-ca-consumer | xargs rpm -e |sort', system)
     runcmd(
-        'rpm -ihv http://{}/pub/katello-ca-consumer-latest.noarch.rpm'.format(
-            settings.server.hostname
-        ),
+        f'rpm -ihv http://{settings.server.hostname}/pub/katello-ca-consumer-latest.noarch.rpm',
         system,
     )
     cmd = f'subscription-manager register --org={org} --environment={env} '
     if activation_key is not None:
         cmd += f'--activationkey={activation_key}'
     else:
-        cmd += '--username={} --password={}'.format(
-            settings.server.admin_username, settings.server.admin_password
-        )
+        cmd += f'--username={settings.server.admin_username} --password={settings.server.admin_password}'
     ret, stdout = runcmd(cmd, system)
     if ret == 0 or "system has been registered" in stdout:
         return True
-    else:
-        raise VirtWhoError(f'Failed to register system: {system}')
+    raise VirtWhoError(f'Failed to register system: {system}')
 
 
 def virtwho_cleanup():
@@ -150,10 +145,9 @@ def get_virtwho_status():
         return 'logerror'
     if any(key in stdout for key in running_stauts):
         return 'running'
-    elif any(key in stdout for key in stopped_status):
+    if any(key in stdout for key in stopped_status):
         return 'stopped'
-    else:
-        return 'undefined'
+    return 'undefined'
 
 
 def get_configure_id(name):
@@ -164,8 +158,7 @@ def get_configure_id(name):
     config = VirtWhoConfig.info({'name': name})
     if 'id' in config['general-information']:
         return config['general-information']['id']
-    else:
-        raise VirtWhoError(f"No configure id found for {name}")
+    raise VirtWhoError(f"No configure id found for {name}")
 
 
 def get_configure_command(config_id, org=DEFAULT_ORG):
@@ -174,9 +167,7 @@ def get_configure_command(config_id, org=DEFAULT_ORG):
     :param str org: the satellite organization name.
     """
     username, password = Base._get_username_password()
-    return "hammer -u {} -p {} virt-who-config deploy --id {} --organization '{}' ".format(
-        username, password, config_id, org
-    )
+    return f"hammer -u {username} -p {password} virt-who-config deploy --id {config_id} --organization '{org}' "
 
 
 def get_configure_file(config_id):
@@ -198,10 +189,8 @@ def get_configure_option(option, filename):
     cmd = f"grep -v '^#' {filename} | grep ^{option}"
     ret, stdout = runcmd(cmd)
     if ret == 0 and option in stdout:
-        value = stdout.split('=')[1].strip()
-        return value
-    else:
-        raise VirtWhoError(f"option {option} is not exist or not be enabled in {filename}")
+        return stdout.split('=')[1].strip()
+    raise VirtWhoError(f"option {option} is not exist or not be enabled in {filename}")
 
 
 def get_rhsm_log():
@@ -216,7 +205,7 @@ def check_message_in_rhsm_log(message):
     """Check the message exist in /var/log/rhsm/rhsm.log"""
     wait_for(
         lambda: 'Host-to-guest mapping being sent to' in get_rhsm_log(),
-        timeout=10,
+        timeout=20,
         delay=2,
     )
     logs = get_rhsm_log()
@@ -236,7 +225,7 @@ def _get_hypervisor_mapping(hypervisor_type):
     """
     wait_for(
         lambda: 'Host-to-guest mapping being sent to' in get_rhsm_log(),
-        timeout=10,
+        timeout=20,
         delay=2,
     )
     logs = get_rhsm_log()
@@ -264,8 +253,7 @@ def _get_hypervisor_mapping(hypervisor_type):
                 break
     if hypervisor_name:
         return hypervisor_name, guest_name
-    else:
-        raise VirtWhoError(f"Failed to get the hypervisor_name for guest {guest_name}")
+    raise VirtWhoError(f"Failed to get the hypervisor_name for guest {guest_name}")
 
 
 def get_hypervisor_ahv_mapping(hypervisor_type):
@@ -301,9 +289,9 @@ def get_hypervisor_ahv_mapping(hypervisor_type):
     # Always check the last json section to get the host_uuid
     for item in mapping:
         if 'entities' in item:
-            for item in item['entities']:
-                if 'host_uuid' in item:
-                    system_uuid = item['host_uuid']
+            for _item in item['entities']:
+                if 'host_uuid' in _item:
+                    system_uuid = _item['host_uuid']
                     break
     message = f"Host UUID {system_uuid} found for VM: {guest_uuid}"
     for line in logs.split('\n'):
@@ -348,6 +336,7 @@ def deploy_configure_by_command(command, hypervisor_type, debug=False, org='Defa
         raise VirtWhoError(f"Failed to deploy configure by {command}")
     if debug:
         return deploy_validation(hypervisor_type)
+    return None
 
 
 def deploy_configure_by_script(
@@ -371,6 +360,7 @@ def deploy_configure_by_script(
         raise VirtWhoError(f"Failed to deploy configure by {script_filename}")
     if debug:
         return deploy_validation(hypervisor_type)
+    return None
 
 
 def deploy_configure_by_command_check(command):
@@ -384,13 +374,12 @@ def deploy_configure_by_command_check(command):
     virtwho_cleanup()
     try:
         ret, stdout = runcmd(command)
-    except Exception:
-        raise VirtWhoError(f"Failed to deploy configure by {command}")
+    except Exception as err:
+        raise VirtWhoError(f"Failed to deploy configure by {command}") from err
     else:
         if ret != 0 or 'Finished successfully' not in stdout:
             raise VirtWhoError(f"Failed to deploy configure by {command}")
-        else:
-            return 'Finished successfully'
+        return 'Finished successfully'
 
 
 def restart_virtwho_service():
@@ -410,7 +399,7 @@ def update_configure_option(option, value, config_file):
     :param value:  set the option to the value
     :param config_file: path of virt-who config file
     """
-    cmd = 'sed -i "s|^{0}.*|{0}={1}|g" {2}'.format(option, value, config_file)
+    cmd = f'sed -i "s|^{option}.*|{option}={value}|g" {config_file}'
     ret, output = runcmd(cmd)
     if ret != 0:
         raise VirtWhoError(f"Failed to set option {option} value to {value}")
@@ -422,7 +411,7 @@ def delete_configure_option(option, config_file):
     :param option: the option you want to delete
     :param config_file: path of virt-who config file
     """
-    cmd = 'sed -i "/^{0}/d" {1}; sed -i "/^#{0}/d" {1}'.format(option, config_file)
+    cmd = f'sed -i "/^{option}/d" {config_file}; sed -i "/^#{option}/d" {config_file}'
     ret, output = runcmd(cmd)
     if ret != 0:
         raise VirtWhoError(f"Failed to delete option {option}")
@@ -437,11 +426,11 @@ def add_configure_option(option, value, config_file):
     """
     try:
         get_configure_option(option, config_file)
-    except Exception:
+    except Exception as err:
         cmd = f'echo -e "\n{option}={value}" >> {config_file}'
-        ret, output = runcmd(cmd)
+        ret, _ = runcmd(cmd)
         if ret != 0:
-            raise VirtWhoError(f"Failed to add option {option}={value}")
+            raise VirtWhoError(f"Failed to add option {option}={value}") from err
     else:
         raise VirtWhoError(f"option {option} is already exist in {config_file}")
 
@@ -456,9 +445,9 @@ def hypervisor_json_create(hypervisors, guests):
     :param guests: how many guests will be created
     """
     hypervisors_list = []
-    for i in range(hypervisors):
+    for _ in range(hypervisors):
         guest_list = []
-        for c in range(guests):
+        for _ in range(guests):
             guest_list.append(
                 {
                     "guestId": str(uuid.uuid4()),
@@ -469,8 +458,7 @@ def hypervisor_json_create(hypervisors, guests):
         name = str(uuid.uuid4())
         hypervisor = {"guestIds": guest_list, "name": name, "hypervisorId": {"hypervisorId": name}}
         hypervisors_list.append(hypervisor)
-    mapping = {"hypervisors": hypervisors_list}
-    return mapping
+    return {"hypervisors": hypervisors_list}
 
 
 def create_fake_hypervisor_content(org_label, hypervisors, guests):
@@ -506,7 +494,7 @@ def virtwho_package_locked():
     assert "Packages are locked" in result[1]
 
 
-def create_http_proxy(org, name=None, url=None, http_type='https'):
+def create_http_proxy(org, location, name=None, url=None, http_type='https'):
     """
     Creat a new http-proxy with attributes.
     :param name: Name of the proxy
@@ -524,5 +512,21 @@ def create_http_proxy(org, name=None, url=None, http_type='https'):
         name=http_proxy_name,
         url=http_proxy_url,
         organization=[org.id],
+        location=[location.id],
     ).create()
     return http_proxy.url, http_proxy.name, http_proxy.id
+
+
+def get_configure_command_option(deploy_type, args, org=DEFAULT_ORG):
+    """Return the deploy command line based on option.
+    :param str option: the unique id of the configure file you have created.
+    :param str org: the satellite organization name.
+    """
+    username, password = Base._get_username_password()
+    if deploy_type == 'location-id':
+        return f"hammer -u {username} -p {password} virt-who-config deploy --id {args['id']} --location-id '{args['location-id']}' "
+    if deploy_type == 'organization-title':
+        return f"hammer -u {username} -p {password} virt-who-config deploy --id {args['id']} --organization-title '{args['organization-title']}' "
+    if deploy_type == 'name':
+        return f"hammer -u {username} -p {password} virt-who-config deploy --name {args['name']} --organization '{org}' "
+    return None

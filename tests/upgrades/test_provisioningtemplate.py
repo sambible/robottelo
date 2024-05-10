@@ -8,14 +8,10 @@
 
 :Team: Rocket
 
-:TestType: Functional
-
-:CaseLevel: Integration
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from fauxfactory import gen_string
 import pytest
 
@@ -110,6 +106,7 @@ class TestScenarioPositiveProvisioningTemplates:
         pre_upgrade_host = module_target_sat.api.Host().search(
             query={'search': f'id={pre_upgrade_data.provision_host_id}'}
         )[0]
+        request.addfinalizer(pre_upgrade_host.delete)
         org = module_target_sat.api.Organization(id=pre_upgrade_host.organization.id).read()
         loc = module_target_sat.api.Location(id=pre_upgrade_host.location.id).read()
         domain = module_target_sat.api.Domain(id=pre_upgrade_host.domain.id).read()
@@ -134,7 +131,6 @@ class TestScenarioPositiveProvisioningTemplates:
             root_pass=settings.provisioning.host_root_password,
             pxe_loader=pxe_loader,
         ).create()
-        request.addfinalizer(pre_upgrade_host.delete)
         request.addfinalizer(new_host.delete)
 
         for kind in provisioning_template_kinds:

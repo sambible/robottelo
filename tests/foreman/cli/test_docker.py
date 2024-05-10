@@ -4,14 +4,10 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Component
-
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 from random import choice, randint
 
 from fauxfactory import gen_string, gen_url
@@ -119,7 +115,7 @@ class TestDockerManifest:
         manifests_list = module_target_sat.cli.Docker.manifest.list({'repository-id': repo['id']})
         # Some manifests do not have tags associated with it, ignore those
         # because we want to check the tag information
-        manifests = [m_iter for m_iter in manifests_list if not m_iter['tags'] == '']
+        manifests = [m_iter for m_iter in manifests_list if m_iter['tags'] != '']
         assert manifests
         tags_list = module_target_sat.cli.Docker.tag.list({'repository-id': repo['id']})
         # Extract tag names for the repository out of docker tag list
@@ -169,7 +165,6 @@ class TestDockerRepository:
         :expectedresults: Multiple docker repositories are created with a
             Docker upstream repository and they all belong to the same product.
 
-        :CaseLevel: Integration
         """
         repo_names = set()
         for _ in range(randint(2, 5)):
@@ -191,7 +186,6 @@ class TestDockerRepository:
             Docker upstream repository and they all belong to their respective
             products.
 
-        :CaseLevel: Integration
         """
         for _ in range(randint(2, 5)):
             product = module_target_sat.cli_factory.make_product_wait(
@@ -404,8 +398,6 @@ class TestDockerContentView:
     :CaseComponent: ContentViews
 
     :team: Phoenix-content
-
-    :CaseLevel: Integration
     """
 
     @pytest.mark.tier2
@@ -1145,8 +1137,6 @@ class TestDockerActivationKey:
     :CaseComponent: ActivationKeys
 
     :team: Phoenix-subscriptions
-
-    :CaseLevel: Integration
     """
 
     @pytest.mark.tier2

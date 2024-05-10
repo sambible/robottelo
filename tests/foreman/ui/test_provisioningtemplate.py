@@ -4,18 +4,14 @@
 
 :CaseAutomation: Automated
 
-:CaseLevel: Acceptance
-
 :CaseComponent: ProvisioningTemplates
 
 :Team: Rocket
 
-:TestType: Functional
-
 :CaseImportance: High
 
-:Upstream: No
 """
+
 import pytest
 
 from robottelo.constants import DataFile
@@ -50,13 +46,11 @@ def test_positive_clone(module_org, module_location, target_sat, clone_setup):
 
     :id: 912f1619-4bb0-4e0f-88ce-88b5726fdbe0
 
-    :Steps:
+    :steps:
         1.  Go to Provisioning template UI
         2.  Choose a template and attempt to clone it
 
     :expectedresults: The template is cloned
-
-    :CaseLevel: Integration
     """
     clone_name = gen_string('alpha')
     with target_sat.ui_session() as session:
@@ -81,13 +75,11 @@ def test_positive_clone_locked(target_sat):
 
     :id: 2df8550a-fe7d-405f-ab48-2896554cda12
 
-    :Steps:
+    :steps:
         1.  Go to Provisioning template UI
         2.  Choose a locked provisioning template and attempt to clone it
 
     :expectedresults: The template is cloned
-
-    :CaseLevel: Integration
     """
     clone_name = gen_string('alpha')
     with target_sat.ui_session() as session:
@@ -111,8 +103,6 @@ def test_positive_end_to_end(module_org, module_location, template_data, target_
     :id: b44d4cc8-b78e-47cf-9993-0bb871ac2c96
 
     :expectedresults: All expected CRUD actions finished successfully
-
-    :CaseLevel: Integration
 
     :CaseImportance: High
     """
@@ -190,7 +180,7 @@ def test_positive_verify_supported_templates_rhlogo(target_sat, module_org, modu
 
     :id: 2df8550a-fe7d-405f-ab48-2896554cda14
 
-    :Steps:
+    :steps:
         1.  Go to Provisioning template UI
         2.  Choose a any provisioning template and check if its supported or not
 
@@ -211,7 +201,7 @@ def test_positive_verify_supported_templates_rhlogo(target_sat, module_org, modu
     with target_sat.ui_session() as session:
         session.organization.select(org_name=module_org.name)
         session.location.select(loc_name=module_location.name)
-        for template in random_templates.keys():
+        for template in random_templates:
             assert (
                 session.provisioningtemplate.is_locked(template)
                 == random_templates[template]['locked']
