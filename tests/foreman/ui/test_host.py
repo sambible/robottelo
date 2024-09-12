@@ -29,6 +29,7 @@ from robottelo.constants import (
     ANY_CONTEXT,
     DEFAULT_CV,
     DEFAULT_LOC,
+    DEFAULT_ORG,
     ENVIRONMENT,
     FAKE_1_CUSTOM_PACKAGE,
     FAKE_7_CUSTOM_PACKAGE,
@@ -1231,6 +1232,8 @@ def test_all_hosts_manage_columns(target_sat, new_host_ui):
         'Boot time': True,
     }
     with target_sat.ui_session() as session:
+        session.organization.select(org_name=DEFAULT_ORG)
+        session.location.select(loc_name=DEFAULT_LOC)
         # Small workaround for an existing bug, reloads the page
         session.all_hosts.get_displayed_table_headers()
         wait_for(lambda: session.browser.refresh(), timeout=5)
